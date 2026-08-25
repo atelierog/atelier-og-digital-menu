@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="A premium digital menu by Atelier OG.">
+<title>Atelier OG — Digital Menu</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">OG</div>
+    <div>
+      <strong>ATELIER OG</strong>
+      <span>DIGITAL MENU</span>
+    </div>
+  </div>
+  <button class="cart-button" id="cartButton" aria-label="View selected items">
+    <span>Request</span><b id="cartCount">0</b>
+  </button>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-kicker">ATELIER OG · DIGITAL</div>
+    <h1>THE DAILY<br><em>TABLE.</em></h1>
+    <p>Fresh food, carefully made. Browse the menu, build your request, and get in touch.</p>
+    <div class="hero-meta">
+      <span>OPEN TODAY · 9 AM — 10 PM</span>
+      <span>EST. 2026</span>
+    </div>
+  </section>
+
+  <section class="menu">
+    <div class="section-head">
+      <div>
+        <small>OUR MENU</small>
+        <h2>Choose your<br><em>favourites.</em></h2>
+      </div>
+      <p>Tap a category to explore.</p>
+    </div>
+
+    <div class="categories" id="categories"></div>
+    <div class="menu-grid" id="menuGrid"></div>
+  </section>
+
+  <section class="visit">
+    <small>FIND US</small>
+    <h2>Come by.<br><em>Stay awhile.</em></h2>
+    <div class="visit-actions">
+      <a href="https://maps.google.com/?q=The+Daily+Table" target="_blank" rel="noopener">Open Location →</a>
+      <a href="https://wa.me/919999999999?text=Hi%20The%20Daily%20Table%2C%20I'd%20like%20to%20make%20a%20request." target="_blank" rel="noopener">WhatsApp →</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <strong>ATELIER OG</strong>
+  <span>DESIGN · DIGITAL · DATA · AUTOMATION</span>
+</footer>
+
+<div class="request-drawer" id="requestDrawer" aria-hidden="true">
+  <div class="drawer-overlay" data-close></div>
+  <aside class="drawer">
+    <button class="drawer-close" data-close>×</button>
+    <small>YOUR REQUEST</small>
+    <h2>Build your<br><em>selection.</em></h2>
+    <div id="selectedItems" class="selected-items"></div>
+    <div class="drawer-total">
+      <span>Estimated total</span>
+      <strong>₹<b id="selectedTotal">0</b></strong>
+    </div>
+    <a id="whatsappRequest" class="request-cta" target="_blank" rel="noopener">REQUEST ON WHATSAPP →</a>
+    <p class="fine-print">Prices shown are demo prices. Final availability and pricing can be confirmed by the business.</p>
+  </aside>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
