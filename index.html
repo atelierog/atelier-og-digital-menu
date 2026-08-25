@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="A premium digital menu by Atelier OG.">
+<meta name="menu-client" content="daily-table">
+<meta name="menu-client-name" content="The Daily Table">
+<!-- GST RATE: set per client in ATELIER_MENU_CONFIG.gstRate -->
+<title>Atelier OG — Digital Menu</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">OG</div>
+    <div>
+      <strong>ATELIER OG</strong>
+      <span>DIGITAL MENU</span>
+    </div>
+  </div>
+  <button class="cart-button" id="cartButton" aria-label="View selected items">
+    <span id="cartLabel">Order</span><b id="cartCount">0</b>
+  </button>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-kicker">ATELIER OG · DIGITAL</div>
+    <h1>THE DAILY<br><em>TABLE.</em></h1>
+    <p>Fresh food, carefully made. Browse the menu, build your request, and get in touch.</p>
+    <div class="client-url" id="clientSlug">atelierog.github.io/atelier-og-digital-menu/daily-table/</div>
+    <div class="hero-meta">
+      <span>OPEN TODAY · 9 AM — 10 PM</span>
+      <span>EST. 2026</span>
+    </div>
+  </section>
+
+  <section class="menu">
+    <div class="section-head">
+      <div>
+        <small>OUR MENU</small>
+        <h2>Choose your<br><em>favourites.</em></h2>
+      </div>
+      <p>Tap a category to explore.</p>
+    </div>
+
+    <div class="categories" id="categories"></div>
+    <div class="menu-grid" id="menuGrid"></div>
+  </section>
+
+  <section class="visit">
+    <small>FIND US</small>
+    <h2>Come by.<br><em>Stay awhile.</em></h2>
+    <div class="visit-actions">
+      <a href="https://maps.google.com/?q=The+Daily+Table" target="_blank" rel="noopener">Open Location →</a>
+      <a href="https://wa.me/919999999999?text=Hi%20The%20Daily%20Table%2C%20I'd%20like%20to%20make%20a%20request." target="_blank" rel="noopener">WhatsApp →</a>
+    </div>
+  </section>
+</main>
+
+
+<section class="qr-section">
+  <div class="qr-copy">
+    <small>SHARE THE MENU</small>
+    <h2>Scan.<br><em>Explore.</em></h2>
+    <p>Use this QR code to open the digital menu instantly on any phone.</p>
+  </div>
+
+  <div class="qr-card">
+    <div class="qr-frame">
+      <div id="qrcode" aria-label="QR code for this digital menu"></div>
+    </div>
+    <div class="qr-client" id="qrClient">THE DAILY TABLE</div>
+    <div class="qr-url" id="qrUrl">https://atelierog.github.io/atelier-og-digital-menu/</div>
+    <div class="qr-actions">
+      <button type="button" id="downloadQr">Download QR</button>
+      <button type="button" id="printQr">Print QR</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>ATELIER OG</strong>
+  <span>DESIGN · DIGITAL · DATA · AUTOMATION</span>
+</footer>
+
+<div class="request-drawer" id="requestDrawer" aria-hidden="true">
+  <div class="drawer-overlay" data-close></div>
+  <aside class="drawer">
+    <button class="drawer-close" data-close>×</button>
+    <small>YOUR ORDER</small>
+    <h2>Review your<br><em>order.</em></h2>
+    <div id="selectedItems" class="selected-items"></div>
+    <div class="order-summary">
+      <div><span>Subtotal</span><strong>₹<b id="orderSubtotal">0</b></strong></div>
+      <div><span>GST <b id="gstRate">5%</b></span><strong>₹<b id="orderGst">0</b></strong></div>
+      <div class="order-grand"><span>Final total</span><strong>₹<b id="selectedTotal">0</b></strong></div>
+      <small>Menu prices are exclusive of GST. GST is added to the final order total.</small>
+    </div>
+    <a id="whatsappRequest" class="request-cta" target="_blank" rel="noopener">PLACE ORDER ON WHATSAPP →</a>
+    <p class="fine-print">Prices shown are demo prices. Final availability and pricing can be confirmed by the business.</p>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+  window.ATELIER_MENU_CONFIG = {
+    client: "daily-table",
+    name: "The Daily Table",
+    slug: "daily-table",
+    basePath: "/atelier-og-digital-menu/",
+    whatsapp: "919999999999",
+    location: "The Daily Table",
+    gstRate: 5
+  };
+</script>
+<script src="script.js"></script>
+</body>
+</html>
