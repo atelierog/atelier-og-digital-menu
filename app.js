@@ -41,11 +41,36 @@ function createBusiness(){
 }
 async function businessDetail(id){
   const b=state.businesses.find(x=>x.id===id);if(!b)return;
-  const r=await supabase.from("business_modules").select("module_id,enabled").eq("business_id",id);if(r.error)return alert(r.error.message);
-  const enabled=new Set((r.data||[]).filter(x=>x.enabled).map(x=>x.module_id));
-  shell("Business",'<div class="back" id="back">← Businesses</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(b.name)+'</h2><p class="muted">'+esc(b.slug)+' · '+esc(b.status)+'</p></div><span class="pill '+b.status+'">'+esc(b.status)+'</span></div><div class="panel"><div class="panel-head"><div><h2>Module access</h2><p>Enable only what this business needs.</p></div><button class="primary" id="save">Save access</button></div><div class="module-grid">'+state.modules.map(m=>'<label class="module-card"><input type="checkbox" value="'+m.id+'" '+(enabled.has(m.id)?"checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.description||"")+'</small></span></label>').join("")+'</div></div>');
+  const [mods,members]=await Promise.all([
+    supabase.from("business_modules").select("module_id,enabled").eq("business_id",id),
+    supabase.from("business_members").select("id,user_id,role,display_name,status,created_at").eq("business_id",id).order("created_at",{ascending:true})
+  ]);
+  if(mods.error)return alert(mods.error.message);
+  if(members.error)return alert(members.error.message);
+  const enabled=new Set((mods.data||[]).filter(x=>x.enabled).map(x=>x.module_id));
+  shell("Business",'<div class="back" id="back">← Businesses</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(b.name)+'</h2><p class="muted">'+esc(b.slug)+' · '+esc(b.status)+'</p></div><span class="pill '+b.status+'">'+esc(b.status)+'</span></div><div class="panel"><div class="panel-head"><div><h2>Module access</h2><p>Enable only what this business needs.</p></div><button class="primary" id="save">Save access</button></div><div class="module-grid">'+state.modules.map(m=>'<label class="module-card"><input type="checkbox" value="'+m.id+'" '+(enabled.has(m.id)?"checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.description||"")+'</small></span></label>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><h2>Members</h2><p>Invite owners, managers and staff to this business.</p></div></div><form id="memberForm" class="form-grid"><label>Email<input id="memail" type="email" required placeholder="staff@example.com"></label><label>Display name<input id="mname" placeholder="Staff name"></label><label>Role<select id="mrole"><option value="owner">Owner</option><option value="manager">Manager</option><option value="staff" selected>Staff</option></select></label><div class="full"><button class="primary">Add / invite member</button></div></form><div class="business-list" id="membersList"></div></div>');
+  const renderMembers=rows=>{document.querySelector("#membersList").innerHTML=rows.length?rows.map(m=>'<div class="business-row"><div class="avatar">'+esc((m.display_name||"U").slice(0,1).toUpperCase())+'</div><div class="row-main"><strong>'+esc(m.display_name||"Unnamed member")+'</strong><span>'+esc(m.role)+' · '+esc(m.user_id)+'</span></div><span class="pill '+(m.status==="active"?"active":"suspended")+'">'+esc(m.status)+'</span></div>').join(""):empty("No members yet","Add the first member above.")};
+  renderMembers(members.data||[]);
   document.querySelector("#back").onclick=()=>render("businesses");
-  document.querySelector("#save").onclick=async()=>{const ids=[...document.querySelectorAll(".module-card input:checked")].map(x=>x.value);await supabase.from("business_modules").delete().eq("business_id",id);if(ids.length)await supabase.from("business_modules").insert(ids.map(module_id=>({business_id:id,module_id,enabled:true})));alert("Module access saved.")};
+  document.querySelector("#save").onclick=async()=>{
+    const ids=[...document.querySelectorAll(".module-card input:checked")].map(x=>x.value);
+    const del=await supabase.from("business_modules").delete().eq("business_id",id);
+    if(del.error)return alert(del.error.message);
+    if(ids.length){const ins=await supabase.from("business_modules").insert(ids.map(module_id=>({business_id:id,module_id,enabled:true})));if(ins.error)return alert(ins.error.message)}
+    alert("Module access saved.");
+  };
+  document.querySelector("#memberForm").onsubmit=async e=>{
+    e.preventDefault();
+    const btn=e.submitter;btn.disabled=true;btn.textContent="Saving...";
+    const r=await supabase.functions.invoke("admin-manage-member",{body:{business_id:id,email:document.querySelector("#memail").value.trim(),display_name:document.querySelector("#mname").value.trim(),role:document.querySelector("#mrole").value}});
+    btn.disabled=false;btn.textContent="Add / invite member";
+    if(r.error)return alert(r.error.message);
+    if(r.data?.error)return alert(r.data.error);
+    alert(r.data?.invited?"Member invited and added.":"Member added.");
+    document.querySelector("#memberForm").reset();
+    const fresh=await supabase.from("business_members").select("id,user_id,role,display_name,status,created_at").eq("business_id",id).order("created_at",{ascending:true});
+    if(fresh.error)return alert(fresh.error.message);renderMembers(fresh.data||[]);
+  };
 }
 function modules(){
   shell("Modules",'<div class="panel"><div class="panel-head"><div><h2>Platform modules</h2><p>Capabilities that can be assigned per business.</p></div></div><div class="module-grid">'+state.modules.map(m=>'<div class="module-card static"><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.description||"")+'</small></span><code>'+esc(m.code)+'</code></div>').join("")+'</div></div>');
