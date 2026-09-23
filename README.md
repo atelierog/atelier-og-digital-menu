@@ -24,4 +24,15 @@ A multi-tenant business platform for restaurants, retail, jewellery, clothing, s
 - Old Restaurant/Digital Menu code is not part of the new source of truth.
 
 ## Build status
-Fresh rebuild started from an empty application source.
+Fresh rebuild from an empty application source.
+
+Current milestone:
+- Super Admin business management and member invitation
+- Per-business module entitlements
+- Business workspace shell
+- Functional Catalog for products and services
+- Category and item create/edit/archive flows
+- Database integrity constraints for cross-business relationships
+- Automatic `updated_at` maintenance on mutable business data
+- Management policies separated by operation for business, member, and module administration
+- Security advisor currently reports only Supabase Auth leaked-password protection as a warning
