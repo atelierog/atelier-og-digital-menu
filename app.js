@@ -173,5 +173,10 @@ async function load(){
 }
 async function boot(){await load();if(!state.user)return;render(isAdmin()?"home":"workspace")}
 function render(v){if(!state.user)return login();if(v==="home"){shell("Overview",overview());document.querySelector("#newBusiness").onclick=createBusiness;document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>businessDetail(x.dataset.business));return}if(v==="businesses")return businesses();if(v==="modules")return modules();return workspace()}
-supabase.auth.onAuthStateChange((_e,s)=>{if(s?.user)boot();else login()});
+supabase.auth.onAuthStateChange((event,s)=>{
+  // OTP verification creates a temporary session. Keep the recovery UI in control
+  // until the password is changed and signOut completes; never boot the dashboard mid-recovery.
+  if(app.dataset.authFlow === "recovery" && event !== "SIGNED_OUT") return;
+  if(s?.user)boot();else login();
+});
 boot();
