@@ -56,7 +56,35 @@ async function createBusiness(){
   const finish=document.querySelector("#finishBusiness");if(finish)finish.onclick=async()=>{finish.disabled=true;finish.textContent="Creating...";const d=JSON.parse(app.dataset.businessDraft||"{}");const cr=await supabase.from("businesses").insert({name:d.name,business_type:d.business_type,slug:d.slug}).select().single();if(cr.error){finish.disabled=false;finish.textContent="Create business";return alert(cr.error.message)}const b=cr.data;
     if(d.modules?.length){const mr=await supabase.from("business_modules").upsert(d.modules.map(module_id=>({business_id:b.id,module_id,enabled:true})),{onConflict:"business_id,module_id"});if(mr.error){await supabase.from("businesses").delete().eq("id",b.id);finish.disabled=false;finish.textContent="Create business";return alert(mr.error.message)}}
     const account=await supabase.functions.invoke("admin-manage-member",{body:{business_id:b.id,email:d.managerEmail,display_name:d.managerName||null,role:"manager",send_temporary_credentials:true}});
-    if(account.error||account.data?.error){if(d.modules?.length)await supabase.from("business_modules").delete().eq("business_id",b.id);await supabase.from("businesses").delete().eq("id",b.id);finish.disabled=false;finish.textContent="Create business";return alert(account.data?.error||account.error?.message||"Manager setup failed")}
+    if(account.error||account.data?.error){
+      let detail=account.data?.message||account.data?.error||"";
+      const context=account.error?.context;
+      if(context){
+        try{
+          const payload=await context.clone().json();
+          detail=payload.message||payload.error||payload.msg||JSON.stringify(payload);
+        }catch{
+          try{detail=await context.clone().text()}catch{}
+        }
+      }
+      const status=context?.status||account.error?.status||"unknown";
+      const friendly=status===401
+        ?"Authentication failed while creating the manager account (HTTP 401). Please sign in again; if it continues, the server rejected the session token."
+        :status===403
+        ?"Permission denied while creating the manager account (HTTP 403). Confirm this account has the Super Admin role."
+        :status===409
+        ?"An account already exists for this manager email. Use a different email or add the existing account."
+        :status===502
+        ?"The manager account email could not be sent. Check the Resend API key and verified sender domain."
+        :status===503
+        ?"Email sending is not configured. Check the RESEND_API_KEY Supabase secret."
+        :detail||account.error?.message||"Manager setup failed.";
+      const message="Manager setup failed"+(status!=="unknown"?" (HTTP "+status+")":"")+": "+friendly+(detail&&detail!==friendly?"\n\nServer detail: "+detail:"");
+      if(d.modules?.length)await supabase.from("business_modules").delete().eq("business_id",b.id);
+      await supabase.from("businesses").delete().eq("id",b.id);
+      finish.disabled=false;finish.textContent="Create business";
+      return alert(message);
+    }
     state.businesses.unshift(b);delete app.dataset.createStep;delete app.dataset.businessDraft;await businessDetail(b.id);alert("Business created. Manager credentials sent by email.");
   };
 }
