@@ -1,10 +1,10 @@
 <div align="center">
 
-# Atelier OG — Business OS
+# Digital Vision by Atelier OG
 
 ### Multi-tenant business platform for digital catalogues, menus, orders and business workflows
 
-**Atelier OG / Business OS** is being built as a reusable platform for restaurants, retail, jewellery, clothing, salons, service businesses and other catalog-based businesses.
+**Digital Vision by Atelier OG** is being built as a reusable platform for restaurants, retail, jewellery, clothing, salons, service businesses and other catalog-based businesses.
 
 </div>
 
@@ -14,7 +14,7 @@
 
 | | |
 |---|---|
-| **Product** | Atelier OG / Business OS |
+| **Product** | Digital Vision by Atelier OG |
 | **Type** | Multi-tenant business platform |
 | **Builder** | Rahul Kumar · Atelier OG |
 | **Core model** | Business → Members → Modules → Catalog → Digital Experiences → Customers → Orders |
@@ -28,7 +28,7 @@
 
 Many small businesses need a digital presence, catalogue, ordering flow and operational tools, but each business does not need a completely separate software system.
 
-Business OS is being designed around a reusable **multi-tenant foundation** where a business can receive the modules and digital experiences it needs while remaining isolated from other businesses.
+Digital Vision is being designed around a reusable **multi-tenant foundation** where a business can receive the modules and digital experiences it needs while remaining isolated from other businesses.
 
 The key architectural decision is simple:
 
@@ -41,7 +41,7 @@ That allows the same platform foundation to support different business types ins
 ## Core platform model
 
 ```text
-                    BUSINESS OS
+                 DIGITAL VISION
                          │
           ┌──────────────┴──────────────┐
           ▼                             ▼
