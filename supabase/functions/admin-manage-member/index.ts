@@ -67,8 +67,20 @@ export default {
     if (!userLookupComplete) {
       return Response.json({ error: "Could not safely finish the manager account lookup. Retry or contact the platform administrator.", code: "AUTH_USER_LOOKUP_INCOMPLETE" }, { status: 503 });
     }
+    let reuseExistingOrphan = false;
     if (sendCredentials && existingUser) {
-      return Response.json({ error: "An account already exists for this email. Add the existing account without sending a new temporary password." }, { status: 409 });
+      if (existingUser.app_metadata?.role === "admin") {
+        return Response.json({ error: "This email belongs to a Super Admin account and cannot be assigned as a business manager." }, { status: 409 });
+      }
+      const { data: existingMemberships, error: existingMembershipError } = await serviceDb
+        .from("business_members").select("business_id,role").eq("user_id", existingUser.id).limit(1);
+      if (existingMembershipError) {
+        return Response.json({ error: "Could not verify existing account access before reuse: " + existingMembershipError.message }, { status: 500 });
+      }
+      if (existingMemberships?.length) {
+        return Response.json({ error: "An account already exists and is assigned to a business. Use a different email or add the existing account without sending a new temporary password." }, { status: 409 });
+      }
+      reuseExistingOrphan = true;
     }
     if (sendCredentials && !Deno.env.get("RESEND_API_KEY")) {
       return Response.json({ error: "Email delivery is not configured. Add RESEND_API_KEY to Supabase Edge Function secrets, then retry." }, { status: 503 });
@@ -77,7 +89,18 @@ export default {
     let user = existingUser ?? null;
     let createdUser = false;
     let tempPassword: string | null = null;
-    if (!user && sendCredentials) {
+    if (reuseExistingOrphan && user) {
+      tempPassword = temporaryPassword();
+      const updated = await ctx.supabaseAdmin.auth.admin.updateUserById(user.id, {
+        password: tempPassword,
+        app_metadata: { ...(user.app_metadata || {}), must_change_password: true },
+        user_metadata: { ...(user.user_metadata || {}), ...(displayName ? { display_name: displayName } : {}) }
+      });
+      if (updated.error || !updated.data.user) {
+        return Response.json({ error: updated.error?.message || "Could not reset the orphaned account for manager setup." }, { status: 400 });
+      }
+      user = updated.data.user;
+    } else if (!user && sendCredentials) {
       tempPassword = temporaryPassword();
       const created = await ctx.supabaseAdmin.auth.admin.createUser({
         email, password: tempPassword, email_confirm: true,
