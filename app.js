@@ -100,9 +100,7 @@ async function businessDetail(id){
   if(mods.error)return alert(mods.error.message);
   if(members.error)return alert(members.error.message);
   const enabled=new Set((mods.data||[]).filter(x=>x.enabled).map(x=>x.module_id));
-  shell("Business",'<div class="back" id="back">← Businesses</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(b.name)+'</h2><p class="muted">'+esc(b.slug)+' · '+esc(b.status)+'</p></div><div class="hero-actions"><span class="pill '+b.status+'">'+esc(b.status)+'</span><button class="secondary" id="openWorkspace">Open workspace</button><button class="secondary" id="businessStatusAction">'+(b.status==="active"?"Suspend":b.status==="suspended"?"Activate":"Reactivate")+'</button><button class="secondary" id="archiveBusiness">Archive</button><button class="secondary" id="deleteBusiness">Delete permanently</button></div></div><div class="panel"><div class="panel-head"><div><h2>Business information</h2></div></div><div class="info-grid"><div><small>Business ID</small><strong>'+esc(b.slug)+'</strong></div><div><small>Type</small><strong>'+esc(typeLabel(b.business_type))+'</strong></div><div><small>Created</small><strong>'+esc(b.created_at?new Date(b.created_at).toLocaleDateString():"—")+'</strong></div></div></div><div class="panel"><div class="panel-head"><div><h2>Module access</h2><p>Enable only what this business needs.</p></div><button class="primary" id="save">Save access</button></div><div class="module-grid">'+state.modules.map(m=>'<label class="module-card"><input type="checkbox" value="'+m.id+'" '+(enabled.has(m.id)?"checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.description||"")+'</small></span></label>').join("")+'</div></div><div class="panel"><div class="panel-head"><div><h2>Members</h2><p>Invite owners, managers and staff to this business.</p></div></div><form id="memberForm" class="form-grid"><label>Email<input id="memail" type="email" required placeholder="staff@example.com"></label><label>Display name<input id="mname" placeholder="Staff name"></label><label>Role<select id="mrole"><option value="owner">Owner</option><option value="manager">Manager</option><option value="staff" selected>Staff</option></select></label><div class="full"><button class="primary">Add / invite member</button></div></form><div class="business-list" id="membersList"></div></div>');
-  const renderMembers=rows=>{document.querySelector("#membersList").innerHTML=rows.length?rows.map(m=>'<div class="business-row"><div class="avatar">'+esc((m.display_name||"U").slice(0,1).toUpperCase())+'</div><div class="row-main"><strong>'+esc(m.display_name||"Unnamed member")+'</strong><span>'+esc(m.role)+' · '+esc(m.user_id)+'</span></div><span class="pill '+(m.status==="active"?"active":"suspended")+'">'+esc(m.status)+'</span></div>').join(""):empty("No members yet","Add the first member above.")};
-  renderMembers(members.data||[]);
+  shell("Business",'<div class="back" id="back">← Businesses</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(b.name)+'</h2><p class="muted">'+esc(b.slug)+' · '+esc(b.status)+'</p></div><div class="hero-actions"><span class="pill '+b.status+'">'+esc(b.status)+'</span><button class="secondary" id="openWorkspace">Open workspace</button><button class="secondary" id="businessStatusAction">'+(b.status==="active"?"Suspend":b.status==="suspended"?"Activate":"Reactivate")+'</button><button class="secondary" id="archiveBusiness">Archive</button><button class="secondary" id="deleteBusiness">Delete permanently</button></div></div><div class="panel"><div class="panel-head"><div><h2>Business information</h2></div></div><div class="info-grid"><div><small>Business ID</small><strong>'+esc(b.slug)+'</strong></div><div><small>Type</small><strong>'+esc(typeLabel(b.business_type))+'</strong></div><div><small>Created</small><strong>'+esc(b.created_at?new Date(b.created_at).toLocaleDateString():"—")+'</strong></div></div></div><div class="panel"><div class="panel-head"><div><h2>Module access</h2><p>Enable only what this business needs.</p></div><button class="primary" id="save">Save access</button></div><div class="module-grid">'+state.modules.map(m=>'<label class="module-card"><input type="checkbox" value="'+m.id+'" '+(enabled.has(m.id)?"checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.description||"")+'</small></span></label>').join("")+'</div></div>');
   document.querySelector("#back").onclick=()=>render("businesses");
   document.querySelector("#openWorkspace").onclick=()=>workspaceForBusiness(id);
   const performBusinessAction=async(action)=>{
@@ -141,18 +139,7 @@ async function businessDetail(id){
     if(ids.length){const ins=await supabase.from("business_modules").insert(ids.map(module_id=>({business_id:id,module_id,enabled:true})));if(ins.error)return alert(ins.error.message)}
     alert("Module access saved.");
   };
-  document.querySelector("#memberForm").onsubmit=async e=>{
-    e.preventDefault();
-    const btn=e.submitter;btn.disabled=true;btn.textContent="Saving...";
-    const r=await supabase.functions.invoke("admin-manage-member",{body:{business_id:id,email:document.querySelector("#memail").value.trim(),display_name:document.querySelector("#mname").value.trim(),role:document.querySelector("#mrole").value}});
-    btn.disabled=false;btn.textContent="Add / invite member";
-    if(r.error)return alert(r.error.message);
-    if(r.data?.error)return alert(r.data.error);
-    alert(r.data?.invited?"Member invited and added.":"Member added.");
-    document.querySelector("#memberForm").reset();
-    const fresh=await supabase.from("business_members").select("id,user_id,role,display_name,status,created_at").eq("business_id",id).order("created_at",{ascending:true});
-    if(fresh.error)return alert(fresh.error.message);renderMembers(fresh.data||[]);
-  };
+
 }
 function modules(){
   if(!isAdmin())return workspace();
@@ -192,11 +179,33 @@ async function workspaceForBusiness(id){
     return '<div class="feature-card"><span class="feature-icon">◇</span><strong>'+esc(m.name)+'</strong><p>'+esc(m.description||"")+'</p>'+button+'</div>';
   }).join("");
 
-  shell("Workspace",'<div class="back" id="workspaceBack">← '+(isAdmin()?"Business":"Businesses")+'</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(b.name)+'</h2><p class="muted">'+esc(role)+' workspace · '+esc(b.slug)+'</p></div><span class="pill active">'+esc(b.status)+'</span></div><div class="grid cards">'+(cards||empty("No modules enabled","A platform administrator needs to enable modules for this business."))+'</div>');
+  const staffPanel=role==="manager" ? '<div class="panel staff-access-panel"><div class="panel-head"><div><h2>Team access</h2><p>Create only the two staff roles for this business.</p></div></div><form id="staffForm" class="form-grid"><label>Staff email<input id="staffEmail" type="email" required placeholder="staff@example.com"></label><label>Display name<input id="staffName" maxlength="120" placeholder="Staff name"></label><label class="full">Access type<select id="staffRole"><option value="order_taker">Order Taker</option><option value="bill_counter">Bill Counter</option></select></label><div class="full"><button class="primary">Invite team member</button></div></form><div id="staffFeedback" class="compact-note" aria-live="polite"></div><div class="business-list" id="staffMembers"></div></div>' : "";
+  shell("Workspace",'<div class="back" id="workspaceBack">← '+(isAdmin()?"Business":"Businesses")+'</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(b.name)+'</h2><p class="muted">'+esc(role)+' workspace · '+esc(b.slug)+'</p></div><span class="pill active">'+esc(b.status)+'</span></div><div class="grid cards">'+(cards||empty("No modules enabled","A platform administrator needs to enable modules for this business."))+'</div>'+staffPanel);
   document.querySelector("#workspaceBack").onclick=()=>isAdmin()?businessDetail(id):render("businesses");
   document.querySelectorAll("[data-open-catalog]").forEach(x=>x.onclick=()=>catalogView(x.dataset.openCatalog));
+  if(role==="manager") loadStaffMembers(id);
 }
 
+
+async function loadStaffMembers(businessId){
+  const list=document.querySelector("#staffMembers");
+  if(!list)return;
+  const result=await supabase.from("business_members").select("user_id,role,display_name,status,created_at").eq("business_id",businessId).in("role",["order_taker","bill_counter"]).order("created_at",{ascending:true});
+  if(result.error){list.innerHTML=empty("Could not load team members",esc(result.error.message));return;}
+  list.innerHTML=(result.data||[]).length?(result.data||[]).map(m=>'<div class="business-row staff-member-row"><div class="avatar">'+esc((m.display_name||m.role).slice(0,1).toUpperCase())+'</div><div class="row-main"><strong>'+esc(m.display_name||m.role.replace("_"," "))+'</strong><span>'+esc(m.role.replace("_"," "))+' · '+esc(m.user_id)+'</span></div><span class="pill '+(m.status==="active"?"active":"suspended")+'">'+esc(m.status)+'</span></div>').join(""):empty("No team members yet","Invite your first Order Taker or Bill Counter.");
+  const form=document.querySelector("#staffForm");
+  if(!form||form.dataset.bound==="true")return;
+  form.dataset.bound="true";
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    const button=form.querySelector("button");const feedback=document.querySelector("#staffFeedback");
+    button.disabled=true;button.textContent="Sending invite…";feedback.textContent="";
+    const response=await supabase.functions.invoke("admin-manage-member",{body:{business_id:businessId,email:document.querySelector("#staffEmail").value.trim().toLowerCase(),display_name:document.querySelector("#staffName").value.trim()||null,role:document.querySelector("#staffRole").value}});
+    button.disabled=false;button.textContent="Invite team member";
+    if(response.error||response.data?.error){feedback.textContent=response.data?.error||response.error?.message||"Could not invite this team member.";return;}
+    form.reset();feedback.textContent="Invitation sent. The team member has been added to this business.";await loadStaffMembers(businessId);
+  };
+}
 async function catalogView(id,editItemId=null,editCategoryId=null){
   const [bq,cq,iq]=await Promise.all([
     supabase.from("businesses").select("id,name,business_type,slug").eq("id",id).single(),
