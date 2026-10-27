@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://qwyquvufneolyesfiipf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_P-N6bQR54Ui4idQahqQwdg_U9l6xz39";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const managerLoginMode = new URLSearchParams(window.location.search).get("login") === "manager";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, managerLoginMode ? { auth: { storageKey: "digital-vision-manager-auth" } } : {});
 const app = document.querySelector("#app");
 const state = { user:null, businesses:[], modules:[] };
 
