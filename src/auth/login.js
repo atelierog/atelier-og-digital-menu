@@ -47,3 +47,24 @@ export function renderLogin({app,supabase,boot,esc},message="",mode="login",emai
   document.querySelector("#login").onsubmit=async e=>{e.preventDefault();const email=document.querySelector("#email").value.trim().toLowerCase(),password=document.querySelector("#password").value;const r=await supabase.auth.signInWithPassword({email,password});if(r.error)return renderLogin({app,supabase,boot,esc},r.error.message);await boot()};
   document.querySelector("#forgot").onclick=()=>renderLogin({app,supabase,boot,esc},"","request",document.querySelector("#email").value.trim().toLowerCase());
 }
+
+
+export function renderFirstLoginPassword({app,supabase,boot,esc}){
+  app.dataset.authFlow="first-login";
+  const brand='<div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div>';
+  app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<h1>Set your password</h1><p class="muted">Choose a new password to finish setting up your account.</p><form id="firstLoginPassword"><label>New password<input id="firstNewPassword" type="password" autocomplete="new-password" required minlength="10" placeholder="At least 10 characters"></label><label>Confirm password<input id="firstConfirmPassword" type="password" autocomplete="new-password" required minlength="10" placeholder="Re-enter password"></label><button class="primary">Save password</button></form><button id="firstSignout" class="link-btn">Sign out</button></div></main>';
+  document.querySelector("#firstSignout").onclick=async()=>{await supabase.auth.signOut();renderLogin({app,supabase,boot,esc})};
+  document.querySelector("#firstLoginPassword").onsubmit=async e=>{
+    e.preventDefault();
+    const password=document.querySelector("#firstNewPassword").value,confirm=document.querySelector("#firstConfirmPassword").value;
+    if(password!==confirm)return alert("The passwords do not match.");
+    if(password.length<10)return alert("Use a password with at least 10 characters.");
+    const btn=e.submitter;btn.disabled=true;btn.textContent="Saving...";
+    const changed=await supabase.auth.updateUser({password});
+    if(changed.error){btn.disabled=false;btn.textContent="Save password";return alert(changed.error.message)}
+    const cleared=await supabase.functions.invoke("complete-first-login");
+    if(cleared.error||cleared.data?.error){btn.disabled=false;btn.textContent="Save password";return alert("Password saved, but account setup could not be completed. Please contact the administrator. "+(cleared.data?.error||cleared.error?.message||""))}
+    await supabase.auth.signOut();
+    renderLogin({app,supabase,boot,esc},"Password set. Sign in with your new password.");
+  };
+}
