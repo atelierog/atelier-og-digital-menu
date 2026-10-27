@@ -1,4 +1,5 @@
 export function renderLogin({app,supabase,boot,esc},message="",mode="login",emailValue=""){
+  app.dataset.authFlow = (mode === "request" || mode === "verify") ? "recovery" : "login";
   const safeMessage=message?'<div class="notice">'+esc(message)+'</div>':'';
   const brand='<div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div>';
   const emailField='<label>Email address<input id="email" type="email" required autocomplete="email" placeholder="you@example.com" value="'+esc(emailValue)+'"></label>';
