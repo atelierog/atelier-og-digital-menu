@@ -50,3 +50,7 @@
   .business-heading-main h2{font-size:20px}
   .section-title{align-items:flex-start}
 }
+
+/* Mobile-safe business actions and manager team controls */
+.hero-row{min-width:0;flex-wrap:wrap;gap:14px}.hero-row>div:first-child{min-width:0;overflow-wrap:anywhere}.hero-actions{min-width:0;max-width:100%;flex-wrap:wrap;justify-content:flex-start}.hero-actions button{white-space:normal;max-width:100%}.info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.info-grid>div{min-width:0;overflow-wrap:anywhere}.info-grid strong{display:block;overflow-wrap:anywhere;word-break:break-word}.staff-access-panel{margin-top:18px}.compact-note{color:#a8a9ad;font-size:12px;line-height:1.5}.staff-member-row{cursor:default}
+@media(max-width:680px){.hero-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.hero-actions .pill{grid-column:1/-1;justify-self:start}.hero-actions button{width:100%;min-width:0;padding:10px 9px;font-size:13px}.info-grid{grid-template-columns:1fr}.hero-row{display:flex}.staff-access-panel .form-grid{grid-template-columns:1fr}.staff-access-panel .form-grid .full{grid-column:1/-1}}
