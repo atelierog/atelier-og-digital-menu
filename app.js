@@ -1,3 +1,4 @@
+import { renderLogin } from "./src/auth/login.js";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://qwyquvufneolyesfiipf.supabase.co";
@@ -10,11 +11,7 @@ const esc = v => String(v ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",
 const typeLabel = t => ({restaurant:"Restaurant",retail:"Retail",jewellery:"Jewellery",clothing:"Clothing",salon:"Salon",services:"Services",other:"Other"}[t]||t);
 const isAdmin = () => state.user?.app_metadata?.role === "admin";
 
-function login(message=""){
-  app.innerHTML='<main class="auth-page"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><h1>Sign in</h1>'+(message?'<div class="notice">'+esc(message)+'</div>':'')+'<form id="login"><label>Email<input id="email" type="email" required autocomplete="email" placeholder="you@example.com"></label><label>Password<div class="password-field"><input id="password" type="password" required autocomplete="current-password" placeholder="Enter your password"><button type="button" id="togglePassword" class="password-toggle" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></label><button class="primary">Sign in</button></form><button id="forgot" class="link-btn">Forgot password?</button></div></main>';
-  const passwordInput=document.querySelector("#password");const toggle=document.querySelector("#togglePassword");toggle.onclick=()=>{const show=passwordInput.type==="password";passwordInput.type=show?"text":"password";toggle.setAttribute("aria-label",show?"Hide password":"Show password");toggle.setAttribute("aria-pressed",String(show));toggle.innerHTML=show?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7c1.3 0 2.5-.3 3.5-.8"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'};\n  document.querySelector("#login").onsubmit=async e=>{e.preventDefault();const email=document.querySelector("#email").value.trim(),password=document.querySelector("#password").value;const r=await supabase.auth.signInWithPassword({email,password});if(r.error)return login(r.error.message);await boot()};
-  document.querySelector("#forgot").onclick=async()=>{const email=document.querySelector("#email").value.trim();if(!email)return login("Enter your email first.");const r=await supabase.auth.resetPasswordForEmail(email,{redirectTo:location.origin});login(r.error?r.error.message:"Password reset email sent. Check your inbox.")};
-}
+function login(message=""){renderLogin({app,supabase,boot,esc},message)}
 
 function shell(title,content){
   app.innerHTML='<div class="app-shell"><aside class="sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><nav><button data-view="home">Overview</button><button data-view="businesses">Businesses</button><button data-view="modules">Modules</button></nav><button id="signout" class="ghost">Sign out</button></aside><main class="main"><header class="topbar"><div><small>DIGITAL VISION</small><h1>'+esc(title)+'</h1></div><span class="status-dot">● Connected</span></header><section class="content">'+content+'</section></main></div>';
