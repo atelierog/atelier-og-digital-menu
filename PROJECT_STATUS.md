@@ -1,10 +1,10 @@
-# Atelier OG — Business OS Checkpoint
+# Digital Vision by Atelier OG — Checkpoint
 
 ## Checkpoint
 Saved: 2026-10-27
 
 ## Current product direction
-The product experience is now called **Digital Vision**. Build a complete restaurant ordering MVP first; expand to jewellery, retail, clothing, salons, and other sectors only after the restaurant flow is tested.
+The product is named **Digital Vision by Atelier OG** (formerly Atelier OG Digital Menu). Build a complete restaurant ordering MVP first; expand to jewellery, retail, clothing, salons, and other sectors only after the restaurant flow is tested.
 
 ### Restaurant MVP roles
 - **Super Admin:** creates restaurant, creates/assigns manager, enables/disables customer ordering.
@@ -14,6 +14,12 @@ The product experience is now called **Digital Vision**. Build a complete restau
 
 ### Restaurant MVP flow
 Create restaurant → create Manager → configure catalog → publish menu → create table QR codes → customer places order → shared unique code on customer receipt and order-taker board → verify/deliver → printable receipt.
+
+## Deployment and integrations
+- Vercel project: `digital-vision-atelier-og` (project ID `prj_oCkDOkIdaA5d1625Vd7SsY42kWV3`), linked to GitHub repository `atelierog/atelier-og-digital-menu` on `main`.
+- Initial Vercel deployment: `https://digital-vision-atelier-ob4wt2m3p-atelier-og.vercel.app` (deployment reported `READY`).
+- Custom domain added and verified in Vercel: `https://digitalvision.atelierog.co.in`.
+- Frontend currently uses the Supabase project URL and browser-safe publishable key in `app.js`. Supabase database inspection is still blocked, so auth redirects, database health, and end-to-end flows remain unverified.
 
 ## Current repository
 Repository: `atelierog/atelier-og-digital-menu`
@@ -55,7 +61,7 @@ Branch: `main`
 - Existing known Supabase security warning: leaked-password protection disabled; resolve before production launch.
 
 ## Deployment limitation
-Cloudflare/browser end-to-end deployment has not been verified. Do not claim the newest GitHub code is live until checked.
+The first Vercel deployment was reported `READY`, and the custom domain was reported verified by Vercel. The app has not yet passed a browser end-to-end test; do not claim the restaurant ordering flow is production-ready. Supabase database inspection previously returned a temporary accessibility error.
 
 ## Resume instruction
 Continue Digital Vision restaurant MVP from this checkpoint. Preserve the existing Business OS foundation. Do not restore the old restaurant-only implementation. Do not claim database changes or live tests were completed unless actually verified.
