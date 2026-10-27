@@ -48,13 +48,54 @@ export default {
           records: occupied
         }, { status: 409 });
       }
+      // Snapshot members before removing this business. Auth users are deleted only
+      // when they are not Super Admins and have no membership in any other business.
+      const { data: businessMembers, error: memberLookupError } = await serviceDb
+        .from("business_members").select("user_id").eq("business_id", businessId);
+      if (memberLookupError) return Response.json({ error: "Could not inspect business members: " + memberLookupError.message, code: "MEMBER_LOOKUP_FAILED" }, { status: 500 });
+      const memberUserIds = [...new Set((businessMembers || []).map((m: { user_id: string }) => m.user_id).filter(Boolean))];
+
       const { error: membersError } = await serviceDb.from("business_members").delete().eq("business_id", businessId);
       if (membersError) return Response.json({ error: "Could not remove business memberships: " + membersError.message, code: "MEMBERSHIP_DELETE_FAILED" }, { status: 500 });
       const { error: modulesError } = await serviceDb.from("business_modules").delete().eq("business_id", businessId);
       if (modulesError) return Response.json({ error: "Could not remove module assignments: " + modulesError.message, code: "MODULE_ASSIGNMENT_DELETE_FAILED" }, { status: 500 });
       const { error: deleteError } = await serviceDb.from("businesses").delete().eq("id", businessId);
       if (deleteError) return Response.json({ error: "Could not delete business: " + deleteError.message, code: "BUSINESS_DELETE_FAILED" }, { status: 500 });
-      return Response.json({ ok: true, action, business_id: businessId, business_name: business.name });
+
+      const deletedAuthUsers: string[] = [];
+      const retainedAuthUsers: string[] = [];
+      const authDeletionErrors: string[] = [];
+      for (const userId of memberUserIds) {
+        const { data: userResult, error: userError } = await ctx.supabaseAdmin.auth.admin.getUserById(userId);
+        if (userError || !userResult.user) {
+          // Missing auth user is already effectively removed; do not fail business deletion.
+          continue;
+        }
+        if (userResult.user.app_metadata?.role === "admin") {
+          retainedAuthUsers.push(userId);
+          continue;
+        }
+        const { count, error: remainingMembershipError } = await serviceDb
+          .from("business_members").select("user_id", { count: "exact", head: true }).eq("user_id", userId);
+        if (remainingMembershipError) {
+          authDeletionErrors.push(userId);
+          continue;
+        }
+        if ((count ?? 0) > 0) {
+          retainedAuthUsers.push(userId);
+          continue;
+        }
+        const { error: authDeleteError } = await ctx.supabaseAdmin.auth.admin.deleteUser(userId);
+        if (authDeleteError) authDeletionErrors.push(userId);
+        else deletedAuthUsers.push(userId);
+      }
+      return Response.json({
+        ok: true, action, business_id: businessId, business_name: business.name,
+        deleted_auth_users: deletedAuthUsers.length,
+        retained_auth_users: retainedAuthUsers.length,
+        auth_deletion_pending: authDeletionErrors.length > 0,
+        ...(authDeletionErrors.length ? { auth_deletion_error_user_ids: authDeletionErrors } : {})
+      });
     }
 
     const status = action === "suspend" ? "suspended" : action === "activate" ? "active" : "archived";
