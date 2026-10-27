@@ -18,8 +18,8 @@ Create restaurant → create Manager → configure catalog → publish menu → 
 ## Deployment and integrations
 - Vercel project: `digital-vision-atelier-og` (project ID `prj_oCkDOkIdaA5d1625Vd7SsY42kWV3`), linked to GitHub repository `atelierog/atelier-og-digital-menu` on `main`.
 - Initial Vercel deployment: `https://digital-vision-atelier-ob4wt2m3p-atelier-og.vercel.app` (deployment reported `READY`).
-- Custom domain added and verified in Vercel: `https://digitalvision.atelierog.co.in`.
-- Frontend currently uses the Supabase project URL and browser-safe publishable key in `app.js`. Supabase database inspection is still blocked, so auth redirects, database health, and end-to-end flows remain unverified.
+- Custom domain added to Vercel: `digitalvision.atelierog.co.in`. Vercel confirms domain ownership, but its domain configuration check reports the subdomain DNS is misconfigured. In the DNS provider for `atelierog.co.in` (nameservers are Cloudflare), add a CNAME record with host `digitalvision` and target `d51eeb5d1a57eb10.vercel-dns-017.com.`; then verify the domain again.
+- Frontend uses Supabase project `qwyquvufneolyesfiipf` URL and browser-safe publishable key in `app.js`. Supabase status is now `ACTIVE_HEALTHY`; public tables and migration history are readable again. Authentication redirects and business workflows still require end-to-end testing.
 
 ## Current repository
 Repository: `atelierog/atelier-og-digital-menu`
@@ -61,7 +61,7 @@ Branch: `main`
 - Existing known Supabase security warning: leaked-password protection disabled; resolve before production launch.
 
 ## Deployment limitation
-The first Vercel deployment was reported `READY`, and the custom domain was reported verified by Vercel. The app has not yet passed a browser end-to-end test; do not claim the restaurant ordering flow is production-ready. Supabase database inspection previously returned a temporary accessibility error.
+The latest Vercel deployment is `READY`, and the stable `vercel.app` URL returned HTTP 200. The custom domain's DNS still needs a CNAME update in Cloudflare before the custom URL is confirmed live. The app has not yet passed a browser end-to-end test; do not claim the restaurant ordering flow is production-ready.
 
 ## Resume instruction
 Continue Digital Vision restaurant MVP from this checkpoint. Preserve the existing Business OS foundation. Do not restore the old restaurant-only implementation. Do not claim database changes or live tests were completed unless actually verified.
