@@ -1,0 +1,45 @@
+/* Digital Vision Platinum theme — global tokens and component overrides */
+:root{color-scheme:dark;--platinum:#e5e4e2;--platinum-bright:#f7f7f5;--platinum-muted:#a8a9ad;--graphite:#151619;--graphite-deep:#0b0c0e;--silver-border:#383a3f;--silver-soft:#24262a;--accent:#c7c9ce;--accent-hover:#f1f1ef}
+*{scrollbar-color:#55575c #121316}
+html,body{background:var(--graphite-deep);color:#f4f4f3}
+.sidebar{background:#101114;border-color:var(--silver-soft)}
+.brand strong{color:var(--platinum-bright);letter-spacing:.16em}
+.brand small{color:#b6b7bb;letter-spacing:.2em}
+.brand.center{margin-bottom:34px}
+.brand.center strong{font-size:18px;letter-spacing:.12em}
+.brand.center small{font-size:10px}
+.topbar{border-color:var(--silver-soft);background:rgba(15,16,18,.9)}
+.topbar small,.eyebrow{color:#c4c6cb}
+.status-dot{color:#c4d8c8}
+.metric,.panel,.feature-card,.auth-card{background:linear-gradient(145deg,#17181b,#111214);border-color:var(--silver-border);box-shadow:0 12px 36px rgba(0,0,0,.16)}
+.metric small,.metric span,.muted,.panel-head p,.module-card small,.row-main span,.item-card span,.item-card p{color:var(--platinum-muted)}
+.primary{background:linear-gradient(135deg,#f1f1ef,#c6c8cd);color:#16171a;border:1px solid #f6f6f4;font-weight:700}
+.primary:hover{filter:brightness(1.04);box-shadow:0 4px 18px #e5e4e21c}
+.secondary,.ghost,.mini-btn{background:#1b1c20;color:#e8e8e7;border-color:#45474d}
+.sidebar nav button:hover,.ghost:hover,.secondary:hover,.mini-btn:hover{background:#282a2f;color:#fff}
+.avatar{background:#292b30;color:#e7e7e4;border:1px solid #484a50}
+.pill{background:#282a2e;color:#d2d3d6}
+.pill.active{background:#1c2a23;color:#b9ddc7}
+.pill.suspended{background:#30251d;color:#e3c5a5}
+.form-grid input,.form-grid select,.form-grid textarea,.auth-card input{background:#0d0e10;border-color:#414349;color:#f3f3f1}
+.form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus,.auth-card input:focus{border-color:#d4d5d9;box-shadow:0 0 0 3px #e5e4e20c}
+.module-card,.business-row,.item-card{background:#17181b;border-color:#303237}
+.module-card input{accent-color:#d6d7db}
+.feature-icon,.metric strong,.item-meta>strong{color:#ededeb}
+.auth-page{background:radial-gradient(ellipse at 50% 0%,#292b30 0%,#141518 34%,#090a0c 75%)}
+.auth-card{border-radius:20px;padding:36px}
+.auth-card h1{color:#f5f5f3;font-weight:650;letter-spacing:-.025em}
+.auth-card form{gap:18px}
+.auth-card label{color:#d0d1d4;font-size:12px;font-weight:550}
+.auth-card input{min-height:46px;border-radius:10px;padding:12px 44px 12px 13px}
+.auth-card .primary{min-height:46px;border-radius:10px;margin-top:2px}
+.auth-card .link-btn{color:#c8c9cd}
+.auth-card .link-btn:hover{color:#fff}
+.password-field{position:relative;display:flex;align-items:center}
+.password-field input{padding-right:48px}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;padding:7px;border:0;border-radius:8px;background:transparent;color:#bfc1c6;cursor:pointer}
+.password-toggle:hover{background:#282a2f;color:#fff}
+.password-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.notice{background:#222126;border-color:#55535b;color:#e4e0e9}
+.empty strong{color:#eee}
+@media(max-width:680px){.auth-card{padding:28px 22px}.brand.center strong{font-size:16px;letter-spacing:.09em}}
