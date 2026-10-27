@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://qwyquvufneolyesfiipf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_P-N6bQR54Ui4idQahqQwdg_U9l6xz39";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const managerLoginMode = new URLSearchParams(window.location.search).get("login") === "manager";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, managerLoginMode ? { auth: { storageKey: "digital-vision-manager-auth" } } : {});
 const app = document.querySelector("#app");
 const state = { user:null, businesses:[], modules:[] };
 
@@ -14,7 +15,7 @@ const isAdmin = () => state.user?.app_metadata?.role === "admin";
 function login(message=""){renderLogin({app,supabase,boot,esc},message)}
 
 function shell(title,content){
-  app.innerHTML='<div class="app-shell"><aside class="sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><nav><button data-view="home">Overview</button><button data-view="businesses">Businesses</button><button data-view="modules">Modules</button></nav><button id="signout" class="ghost">Sign out</button></aside><main class="main"><header class="topbar"><div><small>DIGITAL VISION</small><h1>'+esc(title)+'</h1></div><span class="status-dot">● Connected</span></header><section class="content">'+content+'</section><nav class="mobile-nav"><button data-view="home"><span>⌂</span><small>Overview</small></button><button data-view="businesses"><span>▦</span><small>Businesses</small></button><button data-view="modules"><span>◇</span><small>Modules</small></button><button id="mobileMore"><span>↪</span><small>Sign out</small></button></nav></main></div>';
+  app.innerHTML='<div class="app-shell"><aside class="sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><nav>'+ (isAdmin() ? '<button data-view="home">Overview</button><button data-view="businesses">Businesses</button><button data-view="modules">Modules</button>' : '<button data-view="workspace">Workspace</button>') +'</nav><button id="signout" class="ghost">Sign out</button></aside><main class="main"><header class="topbar"><div><small>DIGITAL VISION</small><h1>'+esc(title)+'</h1></div><span class="status-dot">● Connected</span></header><section class="content">'+content+'</section><nav class="mobile-nav">'+(isAdmin() ? '<button data-view="home"><span>⌂</span><small>Overview</small></button><button data-view="businesses"><span>▦</span><small>Businesses</small></button><button data-view="modules"><span>◇</span><small>Modules</small></button>' : '<button data-view="workspace"><span>⌂</span><small>Workspace</small></button>')+'<button id="mobileMore"><span>↪</span><small>Sign out</small></button></nav></main></div>';
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>render(b.dataset.view));
   const signout=document.querySelector("#signout");
   signout.onclick=async()=>{await supabase.auth.signOut();login()};
@@ -28,12 +29,14 @@ function overview(){
   return '<div class="grid metrics">'+metric("Businesses",state.businesses.length,"")+metric("Active",state.businesses.filter(b=>b.status==="active").length,"")+metric("Members",state.memberCount??"—","")+metric("Modules",state.modules.length,"")+'</div><div class="panel"><div class="panel-head"><h2>Businesses</h2><button class="primary" id="newBusiness">+ Create business</button></div><div class="directory-tools"><input id="homeSearch" type="search" placeholder="Search businesses"><select id="homeStatus"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="archived">Archived</option></select></div><div class="business-list" id="homeBusinessList"></div></div>';
 }
 async function businesses(){
+  if(!isAdmin())return workspace();
   shell("Businesses",'<div class="panel"><div class="panel-head"><h2>Businesses</h2><button class="primary" id="newBusiness">+ Create business</button></div><div class="directory-tools"><input id="businessSearch" type="search" placeholder="Search businesses"><select id="businessStatus"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="archived">Archived</option></select></div><div id="list" class="business-list"></div></div>');
   const list=document.querySelector("#list"),search=document.querySelector("#businessSearch"),status=document.querySelector("#businessStatus");
   const paint=()=>{const q=search.value.trim().toLowerCase(),rows=state.businesses.filter(b=>(b.name+" "+b.slug+" "+b.business_type).toLowerCase().includes(q)&&(status.value==="all"||b.status===status.value));list.innerHTML=rows.length?rows.map(row).join(""):empty("No matching businesses","Try another search or filter.");document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>businessDetail(x.dataset.business))};
   search.oninput=paint;status.onchange=paint;paint();document.querySelector("#newBusiness").onclick=createBusiness;
 }
 async function createBusiness(){
+  if(!isAdmin())return workspace();
   const step=Number(app.dataset.createStep||"1"),draft=(()=>{try{return JSON.parse(app.dataset.businessDraft||"{}")}catch{return {}}})();
   if(step===2 && !state.modules.length){
     const moduleResult=await supabase.from("modules").select("*").order("name");
@@ -152,6 +155,7 @@ async function businessDetail(id){
   };
 }
 function modules(){
+  if(!isAdmin())return workspace();
   shell("Modules",'<div class="panel"><div class="panel-head"><div><h2>Platform modules</h2><p>Capabilities that can be assigned per business.</p></div></div><div class="module-grid">'+state.modules.map(m=>'<div class="module-card static"><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.description||"")+'</small></span><code>'+esc(m.code)+'</code></div>').join("")+'</div></div>');
 }
 async function workspace(){
@@ -255,7 +259,7 @@ async function load(){
   if(b.error)return error(b.error.message);if(m.error)return error(m.error.message);state.businesses=b.data||[];state.modules=m.data||[];state.memberCount=mc.error?null:mc.count;
 }
 async function boot(){await load();if(!state.user||state.user.app_metadata?.must_change_password)return;render(isAdmin()?"home":"workspace")}
-function render(v){if(!state.user)return login();if(v==="home"){shell("Overview",overview());document.querySelector("#newBusiness").onclick=createBusiness;const search=document.querySelector("#homeSearch"),status=document.querySelector("#homeStatus"),list=document.querySelector("#homeBusinessList");const paint=()=>{const q=search.value.trim().toLowerCase(),rows=state.businesses.filter(b=>(b.name+" "+b.slug+" "+b.business_type).toLowerCase().includes(q)&&(status.value==="all"||b.status===status.value));list.innerHTML=rows.length?rows.map(row).join(""):empty("No matching businesses","Try another search or filter.");document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>businessDetail(x.dataset.business))};search.oninput=paint;status.onchange=paint;paint();return}if(v==="businesses")return businesses();if(v==="modules")return modules();return workspace()}
+function render(v){if(!state.user)return login();if(!isAdmin() && ["home","businesses","modules"].includes(v))return workspace();if(v==="home"){shell("Overview",overview());document.querySelector("#newBusiness").onclick=createBusiness;const search=document.querySelector("#homeSearch"),status=document.querySelector("#homeStatus"),list=document.querySelector("#homeBusinessList");const paint=()=>{const q=search.value.trim().toLowerCase(),rows=state.businesses.filter(b=>(b.name+" "+b.slug+" "+b.business_type).toLowerCase().includes(q)&&(status.value==="all"||b.status===status.value));list.innerHTML=rows.length?rows.map(row).join(""):empty("No matching businesses","Try another search or filter.");document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>businessDetail(x.dataset.business))};search.oninput=paint;status.onchange=paint;paint();return}if(v==="businesses")return businesses();if(v==="modules")return modules();return workspace()}
 supabase.auth.onAuthStateChange((event,s)=>{
   // OTP verification creates a temporary session. Keep the recovery UI in control
   // until the password is changed and signOut completes; never boot the dashboard mid-recovery.
