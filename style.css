@@ -27,6 +27,7 @@
 .mobile-nav{display:none}
 @media(max-width:680px){
   .sidebar nav{display:none}
+  .sidebar .ghost{display:none}
   .sidebar{padding:13px 16px}
   .sidebar .ghost{top:12px;right:12px;padding:7px 9px;font-size:12px}
   .brand strong{font-size:13px}
