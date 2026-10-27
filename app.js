@@ -15,7 +15,7 @@ const isAdmin = () => state.user?.app_metadata?.role === "admin";
 function login(message=""){renderLogin({app,supabase,boot,esc},message)}
 
 function shell(title,content){
-  app.innerHTML='<div class="app-shell"><aside class="sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><nav><button data-view="home">Overview</button><button data-view="businesses">Businesses</button><button data-view="modules">Modules</button></nav><button id="signout" class="ghost">Sign out</button></aside><main class="main"><header class="topbar"><div><small>DIGITAL VISION</small><h1>'+esc(title)+'</h1></div><span class="status-dot">● Connected</span></header><section class="content">'+content+'</section><nav class="mobile-nav"><button data-view="home"><span>⌂</span><small>Overview</small></button><button data-view="businesses"><span>▦</span><small>Businesses</small></button><button data-view="modules"><span>◇</span><small>Modules</small></button><button id="mobileMore"><span>↪</span><small>Sign out</small></button></nav></main></div>';
+  app.innerHTML='<div class="app-shell"><aside class="sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><nav>'+ (isAdmin() ? '<button data-view="home">Overview</button><button data-view="businesses">Businesses</button><button data-view="modules">Modules</button>' : '<button data-view="workspace">Workspace</button>') +'</nav><button id="signout" class="ghost">Sign out</button></aside><main class="main"><header class="topbar"><div><small>DIGITAL VISION</small><h1>'+esc(title)+'</h1></div><span class="status-dot">● Connected</span></header><section class="content">'+content+'</section><nav class="mobile-nav"><button data-view="home"><span>⌂</span><small>Overview</small></button><button data-view="businesses"><span>▦</span><small>Businesses</small></button><button data-view="modules"><span>◇</span><small>Modules</small></button><button id="mobileMore"><span>↪</span><small>Sign out</small></button></nav></main></div>';
   document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>render(b.dataset.view));
   const signout=document.querySelector("#signout");
   signout.onclick=async()=>{await supabase.auth.signOut();login()};
@@ -155,6 +155,7 @@ async function businessDetail(id){
   };
 }
 function modules(){
+  if(!isAdmin())return workspace();
   shell("Modules",'<div class="panel"><div class="panel-head"><div><h2>Platform modules</h2><p>Capabilities that can be assigned per business.</p></div></div><div class="module-grid">'+state.modules.map(m=>'<div class="module-card static"><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.description||"")+'</small></span><code>'+esc(m.code)+'</code></div>').join("")+'</div></div>');
 }
 async function workspace(){
