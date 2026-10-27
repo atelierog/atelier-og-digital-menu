@@ -112,7 +112,7 @@ export default {
         headers: { "Authorization": "Bearer " + Deno.env.get("RESEND_API_KEY"), "Content-Type": "application/json" },
         body: JSON.stringify({
           from: FROM_EMAIL, to: [email], subject: "Welcome to the Digital Vision family — your access details",
-          text: "Your Digital Vision account is ready.\\nBusiness: " + business.name + "\\nLogin ID: " + email + "\\nTemporary password: " + tempPassword + "\\nManager sign-in: " + LOGIN_URL + "\\n\\nYou must change this temporary password at first sign-in. Keep these details private.",
+          text: "Welcome to the Digital Vision family!\\nYou have been invited to Digital Vision by Atelier OG.\\nBusiness: " + business.name + "\\nLogin ID: " + email + "\\nTemporary password: " + tempPassword + "\\nManager sign-in: " + LOGIN_URL + "\\n\\nYou must change this temporary password at first sign-in. Keep these details private.",
           html
         })
       });
