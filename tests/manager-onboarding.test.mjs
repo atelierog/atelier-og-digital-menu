@@ -120,6 +120,19 @@ const regressionChecks = [
   ["Manager name is required and used in the greeting", /id="managerName" required/],
   ["Manager modules render in workflow groups", /groupManagerModules\(mods\)[\s\S]{0,250}module-section/],
   ["unavailable modules are clearly labeled", /Not available yet/],
+  ["Manager accounts open the business dashboard", /if\(role==="manager"\)return managerView\(id,"overview"\)/],
+  ["Manager navigation is filtered by business entitlements", /const available=\(page,module\)=>!module\|\|enabledCodes\.has\(module\)/],
+  ["Manager welcome uses the saved display name", /Welcome, '\+esc\(name\)/],
+  ["dashboard totals come from live order rows", /const total=todays\.reduce\(\(n,x\)=>n\+Number\(x\.total\|\|0\)/],
+  ["dashboard reports most and least ordered items", /Most ordered[\s\S]{0,200}Least ordered/],
+  ["order view includes item snapshots and customer details", /order_items"\)\.select\("order_id,item_name,quantity,unit_price,line_total"/],
+  ["Manager can accept or reject new orders", /data-order-status="accepted"[\s\S]{0,180}data-order-status="cancelled"/],
+  ["receipt avoids claiming configured taxes", /not a tax invoice\. Final tax and payment details will appear after restaurant billing settings are configured/],
+  ["analytics provides a downloadable CSV", /downloadReport[\s\S]{0,1500}text\/csv;charset=utf-8/],
+  ["catalog accepts bounded image uploads", /image\/jpeg","image\/png","image\/webp"\]\.[^\n]{0,180}8\*1024\*1024/],
+  ["product uploads are namespaced by business", /const objectPath=id\+"\/products\/"\+crypto\.randomUUID\(\)/],
+  ["Manager theme has responsive mobile navigation", /\.manager-mobile-nav\{position:fixed[\s\S]{0,350}grid-template-columns:repeat\(5,1fr\)/],
+  ["Super Admin shell remains a separate render path", /const role=isAdmin\(\)\?"platform admin":[\s\S]{0,100}if\(role==="manager"\)return managerView/],
 ];
 for (const [name, pattern] of regressionChecks) {
   test(`UI regression: ${name}`, () => assert.match(name.includes("theme") || name.includes("overlap") ? themeSource : appSource + authSource, pattern));
