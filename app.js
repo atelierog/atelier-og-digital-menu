@@ -1,4 +1,8 @@
 import { renderLogin, renderFirstLoginPassword } from "./src/auth/login.js";
+import { createBusinessId } from "./src/manager/business-id.mjs";
+import { canOpenBusinessWorkspace } from "./src/manager/business-access.mjs";
+import { managerWelcomeName } from "./src/manager/welcome-name.mjs";
+import { groupManagerModules, isManagerModuleAvailable } from "./src/manager/module-dashboard.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://qwyquvufneolyesfiipf.supabase.co";
@@ -45,15 +49,15 @@ async function createBusiness(){
   }
   const types=["restaurant","retail","jewellery","clothing","salon","services","other"];
   let body="";
-  if(step===1)body='<div class="stepper"><span class="current">Details</span><span>Modules</span><span>Manager</span><span>Review</span></div><form id="businessForm" class="form-grid"><label>Business name<input id="bname" required maxlength="120" value="'+esc(draft.name||"")+'" placeholder="Business name"></label><label>Business type<select id="btype">'+types.map(x=>'<option value="'+x+'" '+(draft.business_type===x?"selected":"")+'>'+typeLabel(x)+'</option>').join("")+'</select></label><label class="full">Business ID<input id="bslug" required pattern="[a-z0-9-]+" maxlength="80" value="'+esc(draft.slug||"")+'" placeholder="business-name"></label><div class="full"><button class="primary">Continue</button><button type="button" class="secondary" id="cancel">Cancel</button></div></form>';
+  if(step===1)body='<div class="stepper"><span class="current">Details</span><span>Modules</span><span>Manager</span><span>Review</span></div><form id="businessForm" class="form-grid"><label>Business name<input id="bname" required maxlength="120" value="'+esc(draft.name||"")+'" placeholder="Business name"></label><label>Business type<select id="btype">'+types.map(x=>'<option value="'+x+'" '+(draft.business_type===x?"selected":"")+'>'+typeLabel(x)+'</option>').join("")+'</select></label><label class="full">Business ID<input id="bslug" required pattern="[a-z0-9-]+" maxlength="80" value="'+esc(createBusinessId(draft.name||"",state.businesses))+'" placeholder="business-name" readonly><small class="compact-note">Automatically filled from the business name.</small></label><div class="full"><button class="primary">Continue</button><button type="button" class="secondary" id="cancel">Cancel</button></div></form>';
   if(step===2)body='<div class="stepper"><span>Details</span><span class="current">Modules</span><span>Manager</span><span>Review</span></div><form id="moduleForm"><div class="module-grid">'+(state.modules.length?state.modules.map(m=>'<label class="module-card"><input type="checkbox" name="module" value="'+esc(m.id)+'" '+((draft.modules||[]).includes(m.id)?"checked":"")+'><span><strong>'+esc(m.name)+'</strong></span></label>').join(""):'<p class="compact-note">No modules are available yet. Please refresh the page or contact the platform administrator.</p>')+'</div><div class="form-actions"><button type="button" class="secondary" id="prev">Back</button><button class="primary">Continue</button></div></form>';
-  if(step===3)body='<div class="stepper"><span>Details</span><span>Modules</span><span class="current">Manager</span><span>Review</span></div><form id="managerForm" class="form-grid"><label class="full">Manager email<input id="managerEmail" type="email" required value="'+esc(draft.managerEmail||"")+'" placeholder="manager@business.com"></label><label class="full">Display name (optional)<input id="managerName" maxlength="120" value="'+esc(draft.managerName||"")+'" placeholder="Manager name"></label><div class="full"><p class="compact-note">Login ID, temporary password and login link will be emailed. A password change is required at first sign-in.</p><button type="button" class="secondary" id="prev">Back</button><button class="primary">Continue</button></div></form>';
+  if(step===3)body='<div class="stepper"><span>Details</span><span>Modules</span><span class="current">Manager</span><span>Review</span></div><form id="managerForm" class="form-grid"><label class="full">Manager email<input id="managerEmail" type="email" required value="'+esc(draft.managerEmail||"")+'" placeholder="manager@business.com"></label><label class="full">Manager name<input id="managerName" required maxlength="120" value="'+esc(draft.managerName||"")+'" placeholder="Manager name"></label><div class="full"><p class="compact-note">Login ID, temporary password and login link will be emailed. A password change is required at first sign-in.</p><button type="button" class="secondary" id="prev">Back</button><button class="primary">Continue</button></div></form>';
   if(step===4)body='<div class="stepper"><span>Details</span><span>Modules</span><span>Manager</span><span class="current">Review</span></div><div class="review-list"><div><small>Business</small><strong>'+esc(draft.name||"")+'</strong></div><div><small>Business ID</small><strong>'+esc(draft.slug||"")+'</strong></div><div><small>Modules</small><strong>'+esc((draft.modules||[]).map(id=>state.modules.find(m=>m.id===id)?.name).filter(Boolean).join(", ")||"None")+'</strong></div><div><small>Manager</small><strong>'+esc(draft.managerEmail||"")+'</strong></div></div><div class="form-actions"><button class="secondary" id="prev">Back</button><button class="primary" id="finishBusiness">Create business</button></div>';
   shell("Create business",'<div class="panel narrow"><div class="panel-head"><h2>New business</h2></div>'+body+'</div>');
   const setDraft=patch=>app.dataset.businessDraft=JSON.stringify({...draft,...patch}),go=n=>{app.dataset.createStep=String(n);createBusiness()};
   const cancel=document.querySelector("#cancel");if(cancel)cancel.onclick=()=>{delete app.dataset.createStep;delete app.dataset.businessDraft;render("businesses")};
   const prev=document.querySelector("#prev");if(prev)prev.onclick=()=>go(step-1);
-  const bf=document.querySelector("#businessForm");if(bf)bf.onsubmit=e=>{e.preventDefault();setDraft({name:document.querySelector("#bname").value.trim(),slug:document.querySelector("#bslug").value.trim().toLowerCase(),business_type:document.querySelector("#btype").value});go(2)};
+  const bf=document.querySelector("#businessForm");if(bf){const nameInput=document.querySelector("#bname"),idInput=document.querySelector("#bslug");nameInput.oninput=()=>{idInput.value=createBusinessId(nameInput.value,state.businesses)};bf.onsubmit=e=>{e.preventDefault();setDraft({name:nameInput.value.trim(),slug:idInput.value.trim(),business_type:document.querySelector("#btype").value});go(2)}};
   const mf=document.querySelector("#moduleForm");if(mf)mf.onsubmit=e=>{e.preventDefault();setDraft({modules:[...document.querySelectorAll('input[name="module"]:checked')].map(x=>x.value)});go(3)};
   const mgr=document.querySelector("#managerForm");if(mgr)mgr.onsubmit=e=>{e.preventDefault();setDraft({managerEmail:document.querySelector("#managerEmail").value.trim().toLowerCase(),managerName:document.querySelector("#managerName").value.trim()});go(4)};
   const finish=document.querySelector("#finishBusiness");if(finish)finish.onclick=async()=>{finish.disabled=true;finish.textContent="Creating...";const d=JSON.parse(app.dataset.businessDraft||"{}");const cr=await supabase.from("businesses").insert({name:d.name,business_type:d.business_type,slug:d.slug}).select().single();if(cr.error){finish.disabled=false;finish.textContent="Create business";return alert(cr.error.message)}const b=cr.data;
@@ -167,20 +171,25 @@ async function workspaceForBusiness(id){
   if(mmq.error)return error(mmq.error.message);
   if(!isAdmin() && mq.error)return error(mq.error.message);
   const b=bq.data;
-  if(!isAdmin() && b.status!=="active")return shell("Business unavailable",empty("This business is "+b.status,"Access is unavailable while the business is not active. Contact your platform administrator."));
+  if(!canOpenBusinessWorkspace(isAdmin(),b.status))return shell("Business unavailable",empty("This business is "+b.status,"Access is unavailable while the business is not active. Contact your platform administrator."));
   const role=isAdmin()?"platform admin":(mq.data?.role||"member");
+  const managerName=role==="manager"?managerWelcomeName(mq.data,state.user):"";
   const active=new Set((mmq.data||[]).map(x=>x.module_id));
   const mods=state.modules.filter(x=>active.has(x.id));
 
-  const cards=mods.map(m=>{
-    const button=m.code==="catalog"
-      ? '<button class="secondary" data-open-catalog="'+esc(id)+'">Open module</button>'
-      : '<button class="secondary" disabled>Open module</button>';
+  const moduleCard=m=>{
+    const available=isManagerModuleAvailable(m.code);
+    const button=available
+      ? '<button class="secondary" data-open-catalog="'+esc(id)+'">Open Catalog</button>'
+      : '<button class="secondary" disabled>Not available yet</button>';
     return '<div class="feature-card"><span class="feature-icon">◇</span><strong>'+esc(m.name)+'</strong><p>'+esc(m.description||"")+'</p>'+button+'</div>';
-  }).join("");
+  };
+  const cards=role==="manager"
+    ? groupManagerModules(mods).map(group=>'<section class="module-section"><div class="module-section-head"><h3>'+esc(group.title)+'</h3><p>'+esc(group.description)+'</p></div><div class="grid cards">'+group.modules.map(moduleCard).join("")+'</div></section>').join("")
+    : mods.map(moduleCard).join("");
 
   const staffPanel=role==="manager" ? '<div class="panel staff-access-panel"><div class="panel-head"><div><h2>Team access</h2><p>Create only the two staff roles for this business.</p></div></div><form id="staffForm" class="form-grid"><label>Staff email<input id="staffEmail" type="email" required placeholder="staff@example.com"></label><label>Display name<input id="staffName" maxlength="120" placeholder="Staff name"></label><label class="full">Access type<select id="staffRole"><option value="order_taker">Order Taker</option><option value="bill_counter">Bill Counter</option></select></label><div class="full"><button class="primary">Invite team member</button></div></form><div id="staffFeedback" class="compact-note" aria-live="polite"></div><div class="business-list" id="staffMembers"></div></div>' : "";
-  shell("Workspace",'<div class="back" id="workspaceBack">← '+(isAdmin()?"Business":"Businesses")+'</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(b.name)+'</h2><p class="muted">'+esc(role)+' workspace · '+esc(b.slug)+'</p></div><span class="pill active">'+esc(b.status)+'</span></div><div class="grid cards">'+(cards||empty("No modules enabled","A platform administrator needs to enable modules for this business."))+'</div>'+staffPanel);
+  shell(role==="manager"?"Manager dashboard":"Workspace",'<div class="back" id="workspaceBack">← '+(isAdmin()?"Business":"Businesses")+'</div><div class="hero-row"><div><span class="eyebrow">'+esc(typeLabel(b.business_type))+'</span><h2>'+esc(role==="manager"?"Welcome, "+managerName:b.name)+'</h2><p class="muted">'+esc(role==="manager"?b.name+" · "+role+" workspace · "+b.slug:role+" workspace · "+b.slug)+'</p></div><span class="pill active">'+esc(b.status)+'</span></div><div class="grid cards">'+(cards||empty("No modules enabled","A platform administrator needs to enable modules for this business."))+'</div>'+staffPanel);
   document.querySelector("#workspaceBack").onclick=()=>isAdmin()?businessDetail(id):render("businesses");
   document.querySelectorAll("[data-open-catalog]").forEach(x=>x.onclick=()=>catalogView(x.dataset.openCatalog));
   if(role==="manager") loadStaffMembers(id);
@@ -276,3 +285,4 @@ supabase.auth.onAuthStateChange((event,s)=>{
   if(s?.user)boot();else login();
 });
 boot();
+
