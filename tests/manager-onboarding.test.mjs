@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { isSixDigitPassword } from "../src/auth/password-policy.mjs";
@@ -14,6 +15,10 @@ const [appSource, authSource, memberFunction, themeSource, publicMenuFunction] =
   readFile(new URL("../platinum-theme.css", import.meta.url), "utf8"),
   readFile(new URL("../supabase/functions/public-menu/index.ts", import.meta.url), "utf8"),
 ]);
+
+test("app.js parses as an ES module", () => {
+  assert.doesNotThrow(() => execFileSync(process.execPath, ["--input-type=module", "--check"], { input: appSource }));
+});
 
 const successPasswords = ["000000", "111111", "123456", "654321", "999999", "010203", "202604", "909090", "555555", "808080"];
 for (const value of successPasswords) {
