@@ -7,11 +7,12 @@ import { canOpenBusinessWorkspace } from "../src/manager/business-access.mjs";
 import { managerWelcomeName } from "../src/manager/welcome-name.mjs";
 import { groupManagerModules, isManagerModuleAvailable } from "../src/manager/module-dashboard.mjs";
 
-const [appSource, authSource, memberFunction, themeSource] = await Promise.all([
+const [appSource, authSource, memberFunction, themeSource, publicMenuFunction] = await Promise.all([
   readFile(new URL("../app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/auth/login.js", import.meta.url), "utf8"),
   readFile(new URL("../supabase/functions/admin-manage-member/index.ts", import.meta.url), "utf8"),
   readFile(new URL("../platinum-theme.css", import.meta.url), "utf8"),
+  readFile(new URL("../supabase/functions/public-menu/index.ts", import.meta.url), "utf8"),
 ]);
 
 const successPasswords = ["000000", "111111", "123456", "654321", "999999", "010203", "202604", "909090", "555555", "808080"];
@@ -133,8 +134,22 @@ const regressionChecks = [
   ["product uploads are namespaced by business", /const objectPath=id\+"\/products\/"\+crypto\.randomUUID\(\)/],
   ["Manager theme has responsive mobile navigation", /\.manager-mobile-nav\{position:fixed[\s\S]{0,350}grid-template-columns:repeat\(5,1fr\)/],
   ["Super Admin shell remains a separate render path", /const role=isAdmin\(\)\?"platform admin":[\s\S]{0,100}if\(role==="manager"\)return managerView/],
+  ["table QR customer links open the public menu route", /location\.origin\+"\/\?menu="/],
+  ["customer menu supports search, categories and cart", /id="menuSearch"[\s\S]{0,1200}data-add-item/],
+  ["customer checkout calls the secure order endpoint", /action=order[\s\S]{0,300}customer_name/],
+  ["customer receipt follows order status with its tracking token", /action=status&token=/],
 ];
 for (const [name, pattern] of regressionChecks) {
   test(`UI regression: ${name}`, () => assert.match(name.includes("theme") || name.includes("overlap") ? themeSource : appSource + authSource, pattern));
 }
+test("public menu computes prices from active catalog data on the server", () => {
+  assert.match(publicMenuFunction, /\.from\("catalog_items"\)\.select\("id,name,price"\)/);
+  assert.match(publicMenuFunction, /const total = round\(taxable \+ tax\)/);
+  assert.match(publicMenuFunction, /\.rpc\("create_menu_order"/);
+});
+test("public order input is bounded and table scoped", () => {
+  assert.match(publicMenuFunction, /body\.items\.length > 30/);
+  assert.match(publicMenuFunction, /table\.business_id !== business\.id/);
+  assert.match(publicMenuFunction, /next > 20/);
+});
 
