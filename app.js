@@ -216,10 +216,6 @@ async function managerView(id,view="overview"){
 }
 
 function managerIcon(key){return ({overview:"◫",catalog:"▤",digital_page:"◉",qr:"▦",ordering:"▣",offers:"✦",customers:"♙",inquiries:"⌕",analytics:"▥",automation:"⚙",team:"♙"})[key]||"◇"}
-function managerModuleSetup(title,key){
-  const text={digital_page:"Set your restaurant name, description, logo, menu cover and customer-facing theme. Preview the menu before you publish it.",qr:"Create one QR code per table. Guests scan it to open the menu already set to their table.",offers:"Set a restaurant offer. The system will calculate eligible discounts automatically; guests cannot change the offer.",automation:"Manage in-app order alerts and customer status updates."}[key]||"This module is available for this business.";
-  return '<div class="manager-pagehead"><div><span class="eyebrow">MANAGER WORKSPACE</span><h2>'+esc(title)+'</h2><p>'+esc(text)+'</p></div></div><div class="panel"><div class="empty"><strong>'+esc(title)+' setup is being connected</strong><span>The module is enabled. This screen will use your restaurant data after the menu, table, offer and order foundations are connected.</span></div></div>';
-}
 function managerTeamContent(){return '<div class="manager-pagehead"><div><span class="eyebrow">STAFF FOR THIS BUSINESS</span><h2>Team access</h2><p>Create and manage only Order Taker and Bill Counter accounts.</p></div></div><div class="panel"><form id="staffForm" class="form-grid"><label>Staff email<input id="staffEmail" type="email" required placeholder="staff@example.com"></label><label>Display name<input id="staffName" maxlength="120" placeholder="Staff name"></label><label>Access type<select id="staffRole"><option value="order_taker">Order Taker</option><option value="bill_counter">Bill Counter</option></select></label><div class="full"><button class="primary">Invite team member</button></div></form><div id="staffFeedback" class="compact-note" aria-live="polite"></div><div id="staffMembers" class="business-list"></div></div>';}
 function bindManagerStaff(id){loadStaffMembers(id)}
 async function managerOverview(id,b,name,enabled){
