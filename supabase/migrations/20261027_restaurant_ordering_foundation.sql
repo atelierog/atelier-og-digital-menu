@@ -1,5 +1,5 @@
 -- Digital Vision restaurant ordering foundation
--- Draft reviewed against the live schema on 2026-11-08. Apply to a staging database first.
+-- Reviewed against the live schema and applied to production with user approval on 2026-11-08.
 -- Public QR ordering must go through a validated Edge Function; do not add broad anon table policies.
 
 create table if not exists public.restaurant_settings (
@@ -249,17 +249,17 @@ create policy restaurant_offers_manager_delete
 drop trigger if exists restaurant_settings_updated_at on public.restaurant_settings;
 create trigger restaurant_settings_updated_at
   before update on public.restaurant_settings
-  for each row execute function public.set_updated_at();
+  for each row execute function private.set_updated_at();
 
 drop trigger if exists restaurant_tables_updated_at on public.restaurant_tables;
 create trigger restaurant_tables_updated_at
   before update on public.restaurant_tables
-  for each row execute function public.set_updated_at();
+  for each row execute function private.set_updated_at();
 
 drop trigger if exists restaurant_offers_updated_at on public.restaurant_offers;
 create trigger restaurant_offers_updated_at
   before update on public.restaurant_offers
-  for each row execute function public.set_updated_at();
+  for each row execute function private.set_updated_at();
 
 -- Super Admin controls whether public ordering is enabled for a business.
 create or replace function private.guard_ordering_enabled_setting()
