@@ -168,6 +168,8 @@ test("Manager sign-out remains reachable on a mobile viewport", async ({ page })
 });
 
 test("A Manager context failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
+  page.on("console", message => { if (message.type() === "error") console.log("BROWSER_CONSOLE", message.text()); });
+  page.on("pageerror", error => console.log("BROWSER_PAGE_ERROR", error.stack || error.message));
   await installSupabaseMocks(page, "manager", { failBusiness: true });
   const failedBusinessResponse = page.waitForResponse(response => response.url().includes("/rest/v1/businesses") && response.status() === 503);
   await page.goto("/?login=manager");
