@@ -21,10 +21,8 @@ jobs:
         with:
           node-version: "24"
       - name: Install frontend dependencies
-        working-directory: src
         run: npm install
       - name: Build production frontend
-        working-directory: src
         run: npm run build
       - name: Run unit and regression tests
         run: node --test tests/*.test.mjs
