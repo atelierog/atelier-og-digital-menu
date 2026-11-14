@@ -200,7 +200,7 @@ test("Manager overview limits item analytics to the selected date", () => {
 
 test("Manager business context is cached per user/business and stale navigation is guarded", () => {
   assert.match(app, /createTenantContextStore\(30000\)/);
-  assert.match(app, /cache\.businessId===businessId&&cache\.userId===state\.user\?\.id/);
+  assert.match(app, /managerContexts\.get\(businessId,state\.user\?\.id\)/);
   assert.match(app, /createNavigationController\(\)/);
 });
 
