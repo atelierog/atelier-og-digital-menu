@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { canAccessManagerModule } from "../src/src/manager/module-dashboard.mjs";
-import { canOpenBusinessWorkspace } from "../src/src/manager/business-access.mjs";
+import { canAccessManagerModule } from "../src/manager/module-dashboard.mjs";
+import { canOpenBusinessWorkspace } from "../src/manager/business-access.mjs";
 
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
@@ -25,13 +25,13 @@ const [
   firstLogin,
 ] = await Promise.all([
   read("../src/app.js"),
-  read("../src/package.json"),
-  read("../src/vite.config.js"),
-  read("../src/index.html"),
+  read("../package.json"),
+  read("../vite.config.js"),
+  read("../index.html"),
   read("../src/vendor/qrcode.min.js"),
   read("../src/vendor/QRCODE-LICENSE.txt"),
-  read("../src/src/auth/login.js"),
-  read("../src/src/manager/module-dashboard.mjs"),
+  read("../src/auth/login.js"),
+  read("../src/manager/module-dashboard.mjs"),
   read("../supabase/functions/staff-operations/index.ts"),
   read("../supabase/functions/public-menu/index.ts"),
   read("../supabase/migrations/20261114082139_20261114100000_harden_module_entitlements_and_fk_indexes.sql"),
