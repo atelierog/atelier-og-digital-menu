@@ -10,6 +10,10 @@ Updated: 2026-11-14
 - Seven active Supabase Edge Functions recovered and compared byte-for-byte with the live function source.
 - Current production frontend was not replaced.
 
+## Verified before changes
+
+The recovered production frontend already had a deduplicated `bootPromise`, an auth-state listener that avoids re-booting on token refresh, a 30-second Manager context cache keyed by user/business, and a navigation epoch guard. These were preserved. Earlier audit notes about duplicate boot and every-navigation Manager refetch applied to the older GitHub implementation, not the deployed production source.
+
 ## Implemented
 
 ### Production frontend on the recovery branch
