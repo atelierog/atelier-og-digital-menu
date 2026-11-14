@@ -245,6 +245,13 @@ function managerFrameContent(b,view,content,enabledCodes,name,role="manager"){
 function managerSkeleton(){
   return '<div class="manager-section-skeleton" aria-hidden="true"><div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div><div class="skeleton-card large"></div></div>';
 }
+function managerAwait(promise,label,timeoutMs=15000){
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_,reject)=>{timer=setTimeout(()=>{const timeoutError=new Error(label+" took too long. Please retry.");timeoutError.managerTimedOut=true;reject(timeoutError)},timeoutMs)})
+  ]).finally(()=>clearTimeout(timer));
+}
 function managerInlineError(label,error){
   return '<div class="notice" role="alert"><strong>'+esc(label)+' could not be loaded.</strong><p>'+esc(error?.message||"Please check your connection and try again.")+'</p><button class="secondary" id="managerRouteRetry" type="button">Retry</button></div>';
 }
@@ -293,7 +300,7 @@ async function managerView(id,view="overview",knownMembership=null){
   }
   try{
     if(!context){
-      const loaded=await loadManagerWorkspace(supabase,id,state.user.id,state.modules,knownMembership);
+      const loaded=await managerAwait(loadManagerWorkspace(supabase,id,state.user.id,state.modules,knownMembership),"Manager workspace");
       if(!managerNavigation.isCurrent(viewEpoch))return;
       state.modules=loaded.modules;
       cacheManagerContext(id,loaded.business,loaded.membership,loaded.enabledRows);context=currentManagerContext(id);
@@ -315,18 +322,18 @@ async function managerView(id,view="overview",knownMembership=null){
     }
     let markup;
     if(view==="catalog"){
-      await catalogView(id,null,null,viewEpoch,context);
+      await managerAwait(catalogView(id,null,null,viewEpoch,context),"Menu");
       return;
     }
-    if(view==="overview")markup=await managerOverview(id,business,name,enabledCodes);
-    else if(view==="ordering")markup=await managerOrders(id);
-    else if(view==="digital_page")markup=await managerDigitalPage(id,business);
-    else if(view==="qr")markup=await managerQr(id,business);
-    else if(view==="offers")markup=await managerOffers(id);
-    else if(view==="customers")markup=await managerCustomers(id);
-    else if(view==="inquiries")markup=await managerInquiries(id);
-    else if(view==="analytics")markup=await managerReports(id);
-    else if(view==="automation")markup=await managerAutomation(id);
+    if(view==="overview")markup=await managerAwait(managerOverview(id,business,name,enabledCodes),"Overview");
+    else if(view==="ordering")markup=await managerAwait(managerOrders(id),"Orders");
+    else if(view==="digital_page")markup=await managerAwait(managerDigitalPage(id,business),"Digital menu");
+    else if(view==="qr")markup=await managerAwait(managerQr(id,business),"Tables & QR");
+    else if(view==="offers")markup=await managerAwait(managerOffers(id),"Offers");
+    else if(view==="customers")markup=await managerAwait(managerCustomers(id),"Customers");
+    else if(view==="inquiries")markup=await managerAwait(managerInquiries(id),"Inquiries");
+    else if(view==="analytics")markup=await managerAwait(managerReports(id),"Reports");
+    else if(view==="automation")markup=await managerAwait(managerAutomation(id),"Automation");
     else if(view==="team")markup=managerTeamContent(id);
     else if(view==="more")markup=managerMoreContent(enabledCodes);
     else markup=managerModuleSetup(managerNav.find(x=>x[0]===view)?.[1]||"Section",view);
@@ -346,6 +353,7 @@ async function managerView(id,view="overview",knownMembership=null){
   }catch(error){
     if(!managerNavigation.isCurrent(viewEpoch))return;
     const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error);
+    if(error?.managerTimedOut)managerNavigation.invalidate();
     document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
   }
 }
