@@ -282,3 +282,39 @@ test("module catalogue remains grouped without hiding unknown future modules", (
   assert.match(moduleDashboard, /Other modules/);
   assert.match(moduleDashboard, /groupManagerModules/);
 });
+
+
+test("Manager route loading preserves the current page and does not blank the workspace", () => {
+  const start = app.indexOf("function navigateManager(id,view)");
+  const end = app.indexOf("function bindManagerFrame(id)", start);
+  const route = app.slice(start, end);
+  assert.doesNotMatch(route, /content\.innerHTML=.*manager-route-loading/);
+  assert.match(route, /Keep the current page visible while the next route loads/);
+  assert.match(route, /saveManagerView\(id,previousView\)/);
+});
+
+test("Manager route authorization failures never redirect to the generic workspace", () => {
+  const start = app.indexOf("async function managerView(id,view=");
+  const end = app.indexOf("function managerIcon", start);
+  const route = app.slice(start, end);
+  assert.doesNotMatch(route, /return workspace\(\)/);
+  assert.match(route, /Manager access could not be verified/);
+  assert.match(route, /catalogView\(id,null,null,viewEpoch,context\)/);
+});
+
+test("Manager catalog reuses the already verified Manager context instead of rechecking membership", () => {
+  const start = app.indexOf("async function catalogView(");
+  const end = app.indexOf("function ", start + 30);
+  const route = app.slice(start, end);
+  assert.match(route, /managerContext\|\|currentManagerContext\(id\)/);
+  assert.doesNotMatch(route, /from\("business_members"\)/);
+  assert.doesNotMatch(route, /return workspace\(\)/);
+});
+
+test("non-admin login skips platform-wide business directory and member-count queries", () => {
+  const start = app.indexOf("async function load()");
+  const end = app.indexOf("function boot()", start);
+  const route = app.slice(start, end);
+  assert.match(route, /if\(isAdmin\(\)\)/);
+  assert.match(route, /Staff and Manager sessions do not need the platform-wide business/);
+});
