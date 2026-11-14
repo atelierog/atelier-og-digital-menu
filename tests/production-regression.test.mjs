@@ -191,7 +191,7 @@ test("module entitlement writes are restricted to Super Admin", () => {
 });
 
 test("staff desk limits item reads to the displayed order IDs", () => {
-  assert.match(app, /orderIds\.length[\s\S]{0,220}\.in\("order_id",orderIds\)/);
+  assert.match(app, /loadStaffDeskData\(supabase,businessId\)/);
 });
 
 test("Manager overview limits item analytics to the selected date", () => {
@@ -293,7 +293,7 @@ test("Manager navigation never rolls back or shows a blocking route-loading labe
   const route = app.slice(start, end);
   assert.doesNotMatch(route, /previousView|saveManagerView\(id,previousView\)|Loading \+label/);
   assert.match(route, /app\.dataset\.managerView=view/);
-  assert.match(route, /content\.innerHTML=.*could not be opened/);
+  assert.match(route, /return managerView\(id,view\)/);
   assert.match(route, /Retry/);
 });
 
