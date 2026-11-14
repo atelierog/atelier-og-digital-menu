@@ -327,7 +327,7 @@ test("non-admin login skips platform-wide business directory and member-count qu
   const end = app.indexOf("function boot()", start);
   const route = app.slice(start, end);
   assert.match(route, /if\(isAdmin\(\)\)/);
-  assert.match(route, /Staff and Manager sessions do not need the platform-wide business/);
+  assert.match(route, /Manager module metadata is loaded after its shell is mounted/);
 });
 
 test("tenant context cache is isolated by business and user and expires", () => {
@@ -371,7 +371,7 @@ test("Manager navigation renders into the existing content region, not the app r
   const route = app.slice(start, end);
   assert.match(route, /document.querySelector\("\.manager-content"\)/);
   assert.doesNotMatch(route, /app\.innerHTML/);
-  assert.match(route, /managerNavigation/);
+  assert.match(route, /return managerView\(id,view\)/);
 });
 
 test("Manager has desktop and mobile sign-out controls", () => {
