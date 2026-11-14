@@ -1,6 +1,7 @@
 import { renderLogin, renderFirstLoginPassword } from "./auth/login.js";
 import { createTenantContextStore } from "./core/tenant-context.js";
 import { createNavigationController } from "./core/navigation.js";
+import { loadManagerWorkspace } from "./domains/workspaces/manager-workspace.js";
 import { createBusinessId } from "./manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
 import { managerWelcomeName } from "./manager/welcome-name.mjs";
@@ -289,16 +290,10 @@ async function managerView(id,view="overview"){
   }
   try{
     if(!context){
-      const [business,membership,enabledRows,modules]=await Promise.all([
-        supabase.from("businesses").select("id,name,business_type,slug,status").eq("id",id).single(),
-        supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),
-        supabase.from("business_modules").select("module_id,enabled").eq("business_id",id).eq("enabled",true),
-        state.modules.length?Promise.resolve({data:state.modules,error:null}):supabase.from("modules").select("*").order("name")
-      ]);
+      const loaded=await loadManagerWorkspace(supabase,id,state.user.id,state.modules);
       if(!managerNavigation.isCurrent(viewEpoch))return;
-      if(business.error)throw business.error;if(membership.error)throw membership.error;if(enabledRows.error)throw enabledRows.error;if(modules.error)throw modules.error;
-      state.modules=modules.data||[];
-      cacheManagerContext(id,business.data,membership.data,enabledRows.data||[]);context=currentManagerContext(id);
+      state.modules=loaded.modules;
+      cacheManagerContext(id,loaded.business,loaded.membership,loaded.enabledRows);context=currentManagerContext(id);
     }
     if(!managerNavigation.isCurrent(viewEpoch))return;
     const business=context.business,membership=context.membership;
