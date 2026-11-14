@@ -8,6 +8,8 @@ import { isSixDigitPassword, isStaffPassword } from "../src/auth/password-policy
 import { createBusinessId } from "../src/manager/business-id.mjs";
 import { managerWelcomeName } from "../src/manager/welcome-name.mjs";
 import { groupManagerModules } from "../src/manager/module-dashboard.mjs";
+import { createTenantContextStore } from "../src/core/tenant-context.js";
+import { createNavigationController } from "../src/core/navigation.js";
 
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
@@ -196,9 +198,9 @@ test("Manager overview limits item analytics to the selected date", () => {
 });
 
 test("Manager business context is cached per user/business and stale navigation is guarded", () => {
-  assert.match(app, /MANAGER_CONTEXT_TTL=30000/);
+  assert.match(app, /createTenantContextStore\(30000\)/);
   assert.match(app, /cache\.businessId===businessId&&cache\.userId===state\.user\?\.id/);
-  assert.match(app, /managerNavigationEpoch/);
+  assert.match(app, /createNavigationController\(\)/);
 });
 
 test("customer status polling is throttled to ten seconds", () => {
@@ -326,4 +328,54 @@ test("non-admin login skips platform-wide business directory and member-count qu
   const route = app.slice(start, end);
   assert.match(route, /if\(isAdmin\(\)\)/);
   assert.match(route, /Staff and Manager sessions do not need the platform-wide business/);
+});
+
+test("tenant context cache is isolated by business and user and expires", () => {
+  let now = 1000;
+  const cache = createTenantContextStore(30000, () => now);
+  const value = { businessId: "b1", userId: "u1", business: { id: "b1" }, membership: { role: "manager" }, enabledRows: [] };
+  cache.set(value);
+  assert.equal(cache.get("b1", "u1").business.id, "b1");
+  assert.equal(cache.get("b2", "u1"), null);
+  assert.equal(cache.get("b1", "u2"), null);
+  now += 30000;
+  assert.equal(cache.get("b1", "u1"), null);
+  cache.set(value);
+  cache.clear();
+  assert.equal(cache.get("b1", "u1"), null);
+});
+
+test("navigation controller invalidates stale route requests", () => {
+  const navigation = createNavigationController();
+  const first = navigation.begin();
+  const second = navigation.begin();
+  assert.equal(navigation.isCurrent(first), false);
+  assert.equal(navigation.isCurrent(second), true);
+  navigation.invalidate();
+  assert.equal(navigation.isCurrent(second), false);
+});
+
+test("Manager shell is mounted before business and module context requests resolve", () => {
+  const start = app.indexOf("async function managerView(id,view=");
+  const end = app.indexOf("function managerIcon", start);
+  const route = app.slice(start, end);
+  const shellMount = route.indexOf('app.innerHTML=managerFrameContent');
+  const contextRequest = route.indexOf('supabase.from("businesses")');
+  assert.ok(shellMount >= 0 && contextRequest > shellMount);
+  assert.match(route, /managerSkeleton\(\)/);
+});
+
+test("Manager navigation renders into the existing content region, not the app root", () => {
+  const start = app.indexOf("function navigateManager(id,view)");
+  const end = app.indexOf("async function managerView(id,view=");
+  const route = app.slice(start, end);
+  assert.match(route, /document.querySelector\("\.manager-content"\)/);
+  assert.doesNotMatch(route, /app\.innerHTML/);
+  assert.match(route, /managerNavigation/);
+});
+
+test("Manager has desktop and mobile sign-out controls", () => {
+  assert.match(app, /id="managerSignout"/);
+  assert.match(app, /id="managerTopSignout"/);
+  assert.match(app, /supabase\.auth\.signOut\(\)/);
 });
