@@ -2,7 +2,7 @@
 
 Captured from the live Supabase project `qwyquvufneolyesfiipf` on 2026-11-14.
 
-The live database reports **22 applied migrations**:
+The live database reports **23 applied migrations**:
 
 | Applied version | Applied name |
 |---|---|
@@ -28,6 +28,7 @@ The live database reports **22 applied migrations**:
 | 20261110142054 | staff_id_login_and_resets |
 | 20261110154405 | stream_orders_to_realtime |
 | 20261114082139 | 20261114100000_harden_module_entitlements_and_fk_indexes |
+| 20261114082546 | make_module_entitlement_rpc_invoker |
 
 ## Repository comparison
 
@@ -40,4 +41,4 @@ Neither filename is an exact version/name match for the corresponding live recor
 
 **Do not rename these two files to pretend they are the applied versions. Do not create no-op placeholders and do not mark missing versions applied.** The live schema, constraints, indexes, policies and functions must be used to build a reviewed schema snapshot or recover the original SQL from the original authoring environment/backups. Until then, this file is an inventory, not a replacement migration history.
 
-The new migration is tracked as `20261114082139_20261114100000_harden_module_entitlements_and_fk_indexes.sql` and **has been applied to production**. Post-application verification confirmed Super Admin-only insert/update/delete policies on `business_modules`, the new `admin_set_business_modules` SECURITY DEFINER RPC, and all three intended foreign-key indexes. The `business_modules` table still contains 11 rows (all enabled); the migration did not delete or alter business-module records.
+The new migrations are tracked as `20261114082139_20261114100000_harden_module_entitlements_and_fk_indexes.sql` and `20261114082546_make_module_entitlement_rpc_invoker.sql`, and **both have been applied to production**. Post-application verification confirmed Super Admin-only insert/update/delete policies on `business_modules`, the transactional `admin_set_business_modules` SECURITY INVOKER RPC, and all three intended foreign-key indexes. The `business_modules` table still contains 11 rows (all enabled); the migration did not delete or alter business-module records.
