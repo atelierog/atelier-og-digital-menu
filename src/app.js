@@ -159,12 +159,13 @@ async function businessDetail(id){
   document.querySelector("#save").onclick=async event=>{
     const button=event.currentTarget;button.disabled=true;button.textContent="Saving access…";
     const selected=[...document.querySelectorAll(".module-card input:checked")],ids=[...new Set(selected.flatMap(input=>input.dataset.moduleGroup==="restaurant"?restaurantModules.map(m=>m.id):[input.value]))];
-    const del=await supabase.from("business_modules").delete().eq("business_id",id);
-    if(del.error){button.disabled=false;button.textContent="Save access";return alert(del.error.message)}
-    if(ids.length){const ins=await supabase.from("business_modules").insert(ids.map(module_id=>({business_id:id,module_id,enabled:true})));if(ins.error){button.disabled=false;button.textContent="Save access";return alert(ins.error.message)}}
     const orderingEnabled=selected.some(input=>input.dataset.moduleGroup==="restaurant");
-    const orderingUpdate=await supabase.from("restaurant_settings").upsert({business_id:id,customer_ordering_enabled:orderingEnabled},{onConflict:"business_id"});
-    if(orderingUpdate.error){button.disabled=false;button.textContent="Save access";return alert("Access saved, but ordering could not be synchronized: "+orderingUpdate.error.message)}
+    const result=await supabase.rpc("admin_set_business_modules",{
+      p_business_id:id,
+      p_module_ids:ids,
+      p_customer_ordering_enabled:orderingEnabled
+    });
+    if(result.error){button.disabled=false;button.textContent="Save access";return alert("Could not save business access: "+result.error.message)}
     button.textContent="Saved";setTimeout(()=>{button.disabled=false;button.textContent="Save access"},1000);
   };
 
@@ -193,6 +194,7 @@ const managerNav=[
 ];
 
 const MANAGER_CONTEXT_TTL=30000;
+const CUSTOMER_STATUS_POLL_INTERVAL_MS=10000;
 function cacheManagerContext(businessId,business,membership,enabledRows){
   managerContextCache={businessId,userId:state.user?.id,loadedAt:Date.now(),business,membership,enabledRows:enabledRows||[]};
 }
@@ -305,7 +307,7 @@ async function managerOverview(id,b,name,enabled){
   const [orders,catalog,orderItems]=await Promise.all([
     enabled.has("ordering")?supabase.from("orders").select("id,status,total,payment_status,created_at").eq("business_id",id).gte("created_at",dayStart.toISOString()).lt("created_at",dayEnd.toISOString()).order("created_at",{ascending:false}):Promise.resolve({data:[],error:null}),
     enabled.has("catalog")?supabase.from("catalog_items").select("id,name,active").eq("business_id",id):Promise.resolve({data:[],error:null}),
-    enabled.has("ordering")?supabase.from("order_items").select("item_name,quantity,orders!inner(status)").eq("business_id",id).neq("orders.status","cancelled"):Promise.resolve({data:[],error:null})
+    enabled.has("ordering")?supabase.from("order_items").select("item_name,quantity,orders!inner(status,created_at)").eq("business_id",id).gte("orders.created_at",dayStart.toISOString()).lt("orders.created_at",dayEnd.toISOString()).neq("orders.status","cancelled"):Promise.resolve({data:[],error:null})
   ]);
   for(const x of [orders,catalog,orderItems])if(x.error)return '<div class="notice">Could not load this summary: '+esc(x.error.message)+'</div>';
   const todays=(orders.data||[]).filter(x=>x.status!=="cancelled");
@@ -438,13 +440,17 @@ async function workspaceForBusiness(id){
 async function staffWorkspace(businessId,business,role,membership,highlightOrderId=null){
   app.dataset.staffBusinessId=businessId;app.dataset.staffWorkspaceActive="true";
   const isOrderTaker=role==="order_taker",title=isOrderTaker?"Order Taker desk":"Bill Counter",name=membership?.display_name||state.user?.user_metadata?.display_name||"Team member";
-  const [ordersResult,itemsResult,tablesResult]=await Promise.all([
-    supabase.from("orders").select("id,order_code,status,total,created_at,customer_name_snapshot,table_id,payment_status").eq("business_id",businessId).order("created_at",{ascending:false}).limit(150),
-    supabase.from("order_items").select("order_id,item_name,quantity").eq("business_id",businessId),
+  const ordersResult=await supabase.from("orders").select("id,order_code,status,total,created_at,customer_name_snapshot,table_id,payment_status").eq("business_id",businessId).order("created_at",{ascending:false}).limit(150);
+  if(ordersResult.error)return error(ordersResult.error.message);
+  const orders=ordersResult.data||[],orderIds=orders.map(order=>order.id);
+  const [itemsResult,tablesResult]=await Promise.all([
+    orderIds.length
+      ? supabase.from("order_items").select("order_id,item_name,quantity").eq("business_id",businessId).in("order_id",orderIds)
+      : Promise.resolve({data:[],error:null}),
     supabase.from("restaurant_tables").select("id,label,table_number").eq("business_id",businessId)
   ]);
-  if(ordersResult.error||itemsResult.error||tablesResult.error)return error((ordersResult.error||itemsResult.error||tablesResult.error).message);
-  const orders=ordersResult.data||[],byOrder=new Map();(itemsResult.data||[]).forEach(x=>byOrder.set(x.order_id,[...(byOrder.get(x.order_id)||[]),x]));
+  if(itemsResult.error||tablesResult.error)return error((itemsResult.error||tablesResult.error).message);
+  const byOrder=new Map();(itemsResult.data||[]).forEach(x=>byOrder.set(x.order_id,[...(byOrder.get(x.order_id)||[]),x]));
   const tables=new Map((tablesResult.data||[]).map(x=>[x.id,x.label||"Table "+x.table_number]));
   const queue=isOrderTaker?orders.filter(x=>["new","accepted","processing"].includes(x.status)):orders.filter(x=>x.payment_status!=="paid"&&["accepted","processing","delivered"].includes(x.status));
   const emptyTitle=isOrderTaker?"No active orders":"No bills waiting";
@@ -650,5 +656,5 @@ function renderCustomerReceipt(order,data,request,endpoint,onBack){
   document.querySelector("#backToMenu").onclick=onBack;
   const status=document.querySelector("#customerOrderStatus");
   let timer;const refresh=async()=>{try{const current=await request(endpoint+"?action=status&token="+encodeURIComponent(order.tracking_token));const labels={new:"Waiting for restaurant",accepted:"Order accepted",processing:"Being prepared",ready:"Ready for delivery",delivered:"Delivered",cancelled:"Order rejected"};status.textContent=labels[current.status]||current.status;if(["delivered","cancelled"].includes(current.status))clearInterval(timer)}catch(error){status.textContent="We couldn’t update the status. Retrying…"}};
-  timer=setInterval(refresh,1000);refresh();window.addEventListener("pagehide",()=>clearInterval(timer),{once:true});
+  timer=setInterval(refresh,CUSTOMER_STATUS_POLL_INTERVAL_MS);refresh();window.addEventListener("pagehide",()=>clearInterval(timer),{once:true});
 }
