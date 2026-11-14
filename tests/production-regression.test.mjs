@@ -195,6 +195,12 @@ test("Manager overview limits item analytics to the selected date", () => {
   assert.match(app, /orders!inner\(status,created_at\)[\s\S]{0,220}\.gte\("orders\.created_at",dayStart\.toISOString\(\)\)[\s\S]{0,140}\.lt\("orders\.created_at",dayEnd\.toISOString\(\)\)/);
 });
 
+test("Manager business context is cached per user/business and stale navigation is guarded", () => {
+  assert.match(app, /MANAGER_CONTEXT_TTL=30000/);
+  assert.match(app, /cache\.businessId===businessId&&cache\.userId===state\.user\?\.id/);
+  assert.match(app, /managerNavigationEpoch/);
+});
+
 test("customer status polling is throttled to ten seconds", () => {
   assert.match(app, /CUSTOMER_STATUS_POLL_INTERVAL_MS=10000/);
   assert.match(app, /setInterval\(refresh,CUSTOMER_STATUS_POLL_INTERVAL_MS\)/);
