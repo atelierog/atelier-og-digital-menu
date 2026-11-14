@@ -4,6 +4,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { canAccessManagerModule } from "../src/manager/module-dashboard.mjs";
 import { canOpenBusinessWorkspace } from "../src/manager/business-access.mjs";
+import { isSixDigitPassword, isStaffPassword } from "../src/auth/password-policy.mjs";
+import { createBusinessId } from "../src/manager/business-id.mjs";
+import { managerWelcomeName } from "../src/manager/welcome-name.mjs";
+import { groupManagerModules } from "../src/manager/module-dashboard.mjs";
 
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
@@ -66,6 +70,84 @@ for (const status of ["active", "suspended", "archived", "pending", "deleted"]) 
     });
   }
 }
+
+
+for (const value of ["000000","123456","999999","000001","987654","111111","222222","333333","444444","555555"]) {
+  test(`six-digit staff password accepts ${value}`, () => assert.equal(isSixDigitPassword(value), true));
+}
+for (const value of ["","12345","1234567","abcdef","12 345","12-345","１２３４５６",123456,null,undefined,true,[] ,{},"12345a","a12345","123.45","123 456","00000\\n"," 123456","123456 "]) {
+  test(`six-digit staff password rejects ${String(value)}`, () => assert.equal(isSixDigitPassword(value), false));
+}
+
+for (const [value,expected] of [
+  ["Atelier OG","atelier-og"],
+  ["Café & Co.","cafe-co"],
+  ["","business"],
+  ["My Business","my-business"],
+  ["  Spaces   Here  ","spaces-here"],
+  ["A/B/C","a-b-c"],
+  ["Hello---World","hello-world"],
+  ["Crème Brûlée","creme-brulee"],
+  ["東京","business"],
+  [null,"business"],
+]) {
+  test(`business ID normalization: ${String(value)}`, () => assert.equal(createBusinessId(value), expected));
+}
+
+for (const [name,expected] of [
+  ["Atelier OG","atelier-og-2"],
+  ["Atelier OG","atelier-og-3"],
+  ["Café & Co.","cafe-co-2"],
+  ["Alpha","alpha-2"],
+  ["alpha","alpha-3"],
+]) {
+  test(`business ID uniqueness: ${name} -> ${expected}`, () => {
+    const existing=[{slug:expected.endsWith("-3")?expected.slice(0,-2)+"-2":expected}];
+    const used=expected.endsWith("-3")?[{slug:expected.slice(0,-2)+"-2"},{slug:expected.slice(0,-2)}]:[{slug:expected.slice(0,-2)}];
+    assert.equal(createBusinessId(name,used),expected);
+  });
+}
+
+for (const [membership,user,expected] of [
+  [{display_name:"rahul kumar"},{email:"other@example.com"},"Rahul Kumar"],
+  [{display_name:""},{user_metadata:{display_name:"rahul"}}, "Rahul"],
+  [{},{email:"rahul.kumar@example.com"},"Rahul Kumar"],
+  [{},{email:"rahul-kumar@example.com"},"Rahul Kumar"],
+  [{},{email:"rahul_kumar@example.com"},"Rahul Kumar"],
+  [{},{},"Manager"],
+  [{display_name:"  aLiCe  "},{},"ALiCe"],
+  [{},{user_metadata:{display_name:"élodie martin"}},"Élodie Martin"],
+]) {
+  test(`Manager welcome name resolves to ${expected}`, () => assert.equal(managerWelcomeName(membership,user),expected));
+}
+
+test("module groups contain the expected business capabilities and unknown modules", () => {
+  const modules=["catalog","ordering","qr","customers","inquiries","offers","digital_page","analytics","automation","custom"].map(code=>({code,id:code}));
+  const groups=groupManagerModules(modules);
+  assert.equal(groups.length,4);
+  assert.deepEqual(groups.map(group=>group.modules.map(module=>module.code)),[
+    ["catalog","ordering","qr"],
+    ["customers","inquiries","offers","digital_page"],
+    ["analytics","automation"],
+    ["custom"]
+  ]);
+});
+
+test("root index points at the canonical production app and existing styles", () => {
+  assert.match(indexHtml, /src="\.\/src\/app\.js/);
+  assert.match(indexHtml, /href="\.\/src\/style\.css"/);
+  assert.match(indexHtml, /href="\.\/src\/platinum-theme\.css"/);
+});
+
+test("staff password policy enforces the six-to-seventy-two character range", () => {
+  assert.equal(isStaffPassword("123456"),true);
+  assert.equal(isStaffPassword("x".repeat(72)),true);
+  assert.equal(isStaffPassword("12345"),false);
+  assert.equal(isStaffPassword("x".repeat(73)),false);
+  assert.equal(isStaffPassword(123456),false);
+  assert.equal(isStaffPassword(null),false);
+  assert.equal(isStaffPassword(""),false);
+});
 
 test("Supabase SDK is bundled from a pinned local npm dependency", () => {
   assert.match(app, /from "@supabase\/supabase-js"/);
