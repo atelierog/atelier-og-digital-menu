@@ -301,7 +301,7 @@ async function managerView(id,view="overview",knownMembership=null){
   }
   try{
     if(!context){
-      const loaded=await managerAwait(loadManagerWorkspace(supabase,id,state.user.id,state.modules,knownMembership),"Manager workspace");
+      const loaded=await managerAwait(loadManagerWorkspace(supabase,id,state.user.id,state.modules,knownMembership),"Manager workspace",4000);
       if(!managerNavigation.isCurrent(viewEpoch))return;
       state.modules=loaded.modules;
       cacheManagerContext(id,loaded.business,loaded.membership,loaded.enabledRows);context=currentManagerContext(id);
