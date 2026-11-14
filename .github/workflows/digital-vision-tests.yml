@@ -22,7 +22,11 @@ jobs:
           node-version: "24"
       - name: Install frontend dependencies
         run: npm install
+      - name: Install Chromium for browser tests
+        run: npx playwright install --with-deps chromium
       - name: Build production frontend
         run: npm run build
       - name: Run unit and regression tests
         run: node --test tests/*.test.mjs
+      - name: Run portal browser acceptance tests
+        run: npm run test:e2e
