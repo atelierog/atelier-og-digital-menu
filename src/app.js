@@ -278,7 +278,7 @@ function navigateManager(id,view){
   const status=document.querySelector("#managerRouteStatus");if(status)status.textContent="● Connected";
   return managerView(id,view);
 }
-async function managerView(id,view="overview"){
+async function managerView(id,view="overview",knownMembership=null){
   const viewEpoch=managerNavigation.begin();
   app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
   if(view!=="ordering")stopOrderWatch();
@@ -294,7 +294,7 @@ async function managerView(id,view="overview"){
   }
   try{
     if(!context){
-      const loaded=await loadManagerWorkspace(supabase,id,state.user.id,state.modules);
+      const loaded=await loadManagerWorkspace(supabase,id,state.user.id,state.modules,knownMembership);
       if(!managerNavigation.isCurrent(viewEpoch))return;
       state.modules=loaded.modules;
       cacheManagerContext(id,loaded.business,loaded.membership,loaded.enabledRows);context=currentManagerContext(id);
@@ -454,7 +454,7 @@ async function managerAutomation(id){const r=await supabase.from("restaurant_set
 function bindManagerAutomation(id){const form=document.querySelector("#automationForm");if(form)form.onsubmit=async e=>{e.preventDefault();const button=e.submitter,feedback=document.querySelector("#automationFeedback");button.disabled=true;button.textContent="Saving…";const r=await supabase.from("restaurant_settings").upsert({business_id:id,notify_new_order:document.querySelector("#notifyNewOrder").checked,notify_customer_status:document.querySelector("#notifyCustomerStatus").checked},{onConflict:"business_id"});button.disabled=false;button.textContent="Save notification preferences";feedback.textContent=r.error?r.error.message:"Preferences saved."}}
 
 async function workspaceForBusiness(id,knownMembership=null){
-  if(!isAdmin()&&knownMembership?.role==="manager")return managerView(id,savedManagerView(id));
+  if(!isAdmin()&&knownMembership?.role==="manager")return managerView(id,savedManagerView(id),knownMembership);
   const [bq,mq,mmq]=await Promise.all([
     supabase.from("businesses").select("*").eq("id",id).single(),
     supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),
