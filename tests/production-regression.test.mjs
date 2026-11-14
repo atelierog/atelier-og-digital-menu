@@ -206,7 +206,7 @@ test("Manager business context is cached per user/business and stale navigation 
 
 test("customer status polling is throttled to ten seconds", () => {
   assert.match(app, /CUSTOMER_STATUS_POLL_INTERVAL_MS=10000/);
-  assert.match(app, /setInterval\(refresh,CUSTOMER_STATUS_POLL_INTERVAL_MS\)/);
+  assert.match(app, /statusPollIntervalMs:CUSTOMER_STATUS_POLL_INTERVAL_MS/);
 });
 
 test("QR generation loads a local Vite-bundled asset on demand", () => {
