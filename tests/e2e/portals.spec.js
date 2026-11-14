@@ -20,6 +20,7 @@ async function installSupabaseMocks(page, role = "manager") {
     app_metadata: { role },
     user_metadata: { display_name: role === "admin" ? "Test Admin" : "Test Manager" },
   };
+  const member = { ...membership, role };
   const session = {
     access_token: "test-access-token",
     refresh_token: "test-refresh-token",
@@ -51,7 +52,7 @@ async function installSupabaseMocks(page, role = "manager") {
       return json(business);
     }
     if (path.endsWith("/rest/v1/business_members")) {
-      return url.searchParams.has("user_id") ? json(membership) : json([membership]);
+      return url.searchParams.has("user_id") ? json(member) : json([member]);
     }
     if (path.endsWith("/rest/v1/business_modules")) return json(enabledRows);
     if (path.endsWith("/rest/v1/restaurant_tables")) return json([]);
@@ -129,3 +130,12 @@ test("Customer menu portal handles a real browser request", async ({ page }) => 
   await expect(page.locator(".customer-menu-page")).toContainText("Browser Test Cafe");
   await expect(page.locator(".customer-menu-page")).toContainText("Table 1");
 });
+
+for (const role of ["order_taker", "bill_counter"]) {
+  test(`Staff portal boots for ${role} in a real browser`, async ({ page }) => {
+    await installSupabaseMocks(page, role);
+    await page.goto("/");
+    await expect(page.locator(".app-shell")).toBeVisible();
+    await expect(page.locator(".topbar h1")).toContainText(role === "order_taker" ? "Order Taker" : "Bill Counter");
+  });
+}
