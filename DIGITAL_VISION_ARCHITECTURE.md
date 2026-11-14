@@ -74,7 +74,7 @@ The public order command recalculates item prices, discounts and tax on the serv
 6. The Order Taker/Bill Counter workspace previously fetched every historical `order_items` row on each refresh. The recovery branch now limits the query to the 150 displayed orders.
 7. Manager overview previously scanned order items across all dates. The recovery branch now scopes that query to the selected activity date.
 8. Customer order-status tracking previously polled every second. The recovery branch changes the interval to ten seconds.
-9. QR rendering still imports `qrcode` from `esm.sh` at runtime. This remains an external dependency and should be locally bundled in a later build-system change.
+9. QR rendering previously imported `qrcode` from `esm.sh` at runtime. The recovery branch now vendors the dependency locally at `src/vendor/qrcode.min.js`, includes its MIT license, and loads it before the application module.
 10. Existing automated tests read the older root-level app, not the recovered production `src/app.js`. Production-path regression coverage is now included. GitHub Actions reports 246/246 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
 
 ## Target architecture and staged evolution
