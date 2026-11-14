@@ -32,12 +32,12 @@ The live database reports **23 applied migrations**:
 
 ## Repository comparison
 
-The checked Git branches originally contained only these two migration SQL files; this recovery branch now also contains the exact SQL for the new 22nd migration:
+The checked Git branches originally contained only these two migration SQL files; this recovery branch now also contains the exact SQL for the new 22nd and 23rd migrations:
 
 - `20261027_restaurant_ordering_foundation.sql`
 - `20261027163000_add_manager_staff_roles.sql`
 
-Neither filename is an exact version/name match for the corresponding live records (`20261108165540_restaurant_ordering_foundation_20261108` and `20261027162701_add_manager_staff_roles`). The 21 historical applied SQL files (before the new 22nd migration) were not found in any of the ten checked repository branches or their migration directories.
+Neither filename is an exact version/name match for the corresponding live records (`20261108165540_restaurant_ordering_foundation_20261108` and `20261027162701_add_manager_staff_roles`). The 21 historical applied SQL files (before the two new recovery migrations) were not found in any of the ten checked repository branches or their migration directories.
 
 **Do not rename these two files to pretend they are the applied versions. Do not create no-op placeholders and do not mark missing versions applied.** The live schema, constraints, indexes, policies and functions must be used to build a reviewed schema snapshot or recover the original SQL from the original authoring environment/backups. Until then, this file is an inventory, not a replacement migration history.
 
