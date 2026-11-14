@@ -6,7 +6,7 @@ Branch: release/digital-vision-unified
 - Manager shell is rendered before Manager business, membership, module and entitlement requests complete.
 - Manager route changes update the existing .manager-content region rather than replacing the application root.
 - A shared navigation epoch controller rejects stale route responses.
-- Section failures remain inside the active section with a Retry action; route changes do not restore the previous route.
+- Section failures remain inside the active section with a Retry action; route changes do not restore the previous route. Manager context bootstrap is bounded to 4 seconds and individual section requests to 15 seconds, after which a retryable inline error replaces the skeleton.
 - Manager sign-out is available in the sidebar and top bar. It stops the active order watcher and clears the local tenant context before signing out.
 - Tenant context cache and navigation request control are extracted into src/core/.
 - Manager workspace data access is extracted into src/domains/workspaces/manager-workspace.js.
