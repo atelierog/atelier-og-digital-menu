@@ -17,4 +17,3 @@ export function groupManagerModules(modules = []) {
 export function isManagerModuleAvailable(code) {
   return code === "catalog";
 }
-
