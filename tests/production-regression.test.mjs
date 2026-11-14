@@ -8,6 +8,9 @@ import { canOpenBusinessWorkspace } from "../src/src/manager/business-access.mjs
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
   app,
+  indexHtml,
+  qrLibrary,
+  qrLicense,
   login,
   moduleDashboard,
   staffOperations,
@@ -19,6 +22,9 @@ const [
   firstLogin,
 ] = await Promise.all([
   read("../src/app.js"),
+  read("../src/index.html"),
+  read("../src/vendor/qrcode.min.js"),
+  read("../src/vendor/QRCODE-LICENSE.txt"),
   read("../src/src/auth/login.js"),
   read("../src/src/manager/module-dashboard.mjs"),
   read("../supabase/functions/staff-operations/index.ts"),
@@ -93,8 +99,12 @@ test("customer status polling is throttled to ten seconds", () => {
   assert.match(app, /setInterval\(refresh,CUSTOMER_STATUS_POLL_INTERVAL_MS\)/);
 });
 
-test("QR generation dependency is visible for follow-up bundling", () => {
-  assert.match(app, /import\("https:\/\/esm\.sh\/qrcode@1\.5\.4"\)/);
+test("QR generation uses the locally bundled library before app startup", () => {
+  assert.match(indexHtml, /vendor\/qrcode\.min\.js/);
+  assert.match(app, /window\.QRCode/);
+  assert.doesNotMatch(app, /import\("https:\/\/esm\.sh\/qrcode@1\.5\.4"\)/);
+  assert.match(qrLibrary, /QRCode\.CorrectLevel/);
+  assert.match(qrLicense, /The MIT License/);
 });
 
 test("Order Taker and Bill Counter server permissions are distinct", () => {
