@@ -337,7 +337,7 @@ async function managerView(id,view="overview",knownMembership=null){
     else if(view==="team")markup=managerTeamContent(id);
     else if(view==="more")markup=managerMoreContent(enabledCodes);
     else markup=managerModuleSetup(managerNav.find(x=>x[0]===view)?.[1]||"Section",view);
-    if(!managerNavigation.isCurrent(viewEpoch))return;
+    if(!managerNavigation.isCurrent(viewEpoch)||markup===undefined)return;
     const content=document.querySelector(".manager-content");if(!content)return;
     content.innerHTML=markup||'<div class="notice">This section has no content yet.</div>';
     if(view==="team")bindManagerStaff(id);
