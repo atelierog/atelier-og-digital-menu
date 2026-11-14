@@ -52,7 +52,7 @@ async function installSupabaseMocks(page, role = "manager") {
       return json(business);
     }
     if (path.endsWith("/rest/v1/business_members")) {
-      return url.searchParams.has("user_id") ? json(member) : json([member]);
+      return url.searchParams.has("business_id") ? json(member) : json([member]);
     }
     if (path.endsWith("/rest/v1/business_modules")) return json(enabledRows);
     if (path.endsWith("/rest/v1/restaurant_tables")) return json([]);
