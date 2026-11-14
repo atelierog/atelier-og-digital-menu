@@ -230,95 +230,122 @@ function saveManagerView(businessId,view){
 
 function managerFrameContent(b,view,content,enabledCodes,name,role="manager"){
   const title=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-  const available=module=>canAccessManagerModule(role,enabledCodes,module);
+  const available=module=>enabledCodes===null||canAccessManagerModule(role,enabledCodes,module);
   const mainNav=new Set(["overview","catalog","qr","ordering","analytics","more"]);
   const nav=managerNav.filter(([key,,module])=>mainNav.has(key)&&available(module)).map(([key,label])=>'<button class="manager-nav '+(view===key?'active':'')+'" data-manager-view="'+key+'"><span>'+managerIcon(key)+'</span>'+esc(label)+(key==="ordering"?'<small class="manager-count" id="pendingCount"></small>':"")+'</button>').join("");
   const mobileNav=managerNav.filter(([key,,module])=>available(module)&&["overview","catalog","ordering","qr","more"].includes(key)).map(([key,label])=>'<button class="'+(view===key?'active':'')+'" data-manager-view="'+key+'"><span>'+managerIcon(key)+'</span><small>'+esc(key==="ordering"?"Orders":key==="catalog"?"Menu":label)+'</small></button>').join("");
-  return '<div class="manager-shell"><aside class="manager-sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><div class="manager-business"><small>YOUR BUSINESS</small><strong>'+esc(b.name)+'</strong><span>'+esc(typeLabel(b.business_type))+' · '+esc(b.slug)+'</span></div><nav>'+nav+'</nav><button id="managerSignout" class="ghost">Sign out</button></aside><main class="manager-main"><header class="manager-top"><div><small>'+esc(b.name)+' / MANAGER</small><h1>'+esc(title)+'</h1></div><span class="manager-connected" id="managerRouteStatus" role="status" aria-live="polite">● Connected</span></header><section class="manager-content">'+content+'</section><nav class="manager-mobile-nav">'+mobileNav+'</nav></main></div>';
+  return '<div class="manager-shell"><aside class="manager-sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><div class="manager-business"><small>YOUR BUSINESS</small><strong>'+esc(b.name||"Your business")+'</strong><span>'+esc(b.business_type?typeLabel(b.business_type):"Manager workspace")+(b.slug?" · "+esc(b.slug):"")+'</span></div><nav>'+nav+'</nav><button id="managerSignout" class="ghost manager-signout">Sign out</button></aside><main class="manager-main"><header class="manager-top"><div><small>'+esc(b.name||"Your business")+' / MANAGER</small><h1>'+esc(title)+'</h1></div><div class="manager-top-actions"><span class="manager-connected" id="managerRouteStatus" role="status" aria-live="polite">● Connected</span><button id="managerTopSignout" class="secondary manager-top-signout" type="button">Sign out</button></div></header><section class="manager-content">'+content+'</section><nav class="manager-mobile-nav">'+mobileNav+'</nav></main></div>';
+}
+function managerSkeleton(){
+  return '<div class="manager-section-skeleton" aria-hidden="true"><div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div><div class="skeleton-card large"></div></div>';
+}
+function managerInlineError(label,error){
+  return '<div class="notice" role="alert"><strong>'+esc(label)+' could not be loaded.</strong><p>'+esc(error?.message||"Please check your connection and try again.")+'</p><button class="secondary" id="managerRouteRetry" type="button">Retry</button></div>';
+}
+function bindManagerFrame(id){
+  document.querySelectorAll("[data-manager-view]").forEach(el=>el.onclick=()=>navigateManager(id,el.dataset.managerView));
+  const signOut=async()=>{const buttons=[document.querySelector("#managerSignout"),document.querySelector("#managerTopSignout")].filter(Boolean);buttons.forEach(b=>{b.disabled=true;b.textContent="Signing out…"});stopOrderWatch();managerContextCache=null;try{const result=await supabase.auth.signOut();if(result.error)throw result.error;sessionStorage.removeItem("dv-manager-view:"+state.user?.id+":"+id);state.user=null;login()}catch(error){buttons.forEach(b=>{b.disabled=false;b.textContent="Sign out"});showAppToast("Could not sign out: "+error.message)}};
+  ["#managerSignout","#managerTopSignout"].forEach(selector=>{const button=document.querySelector(selector);if(button)button.onclick=signOut});
+}
+function updateManagerShell(id,view,business,enabledCodes,name,role){
+  const current=document.querySelector(".manager-shell");
+  if(!current){app.innerHTML=managerFrameContent(business,view,managerSkeleton(),enabledCodes,name,role);bindManagerFrame(id);return}
+  const businessBlock=document.querySelector(".manager-business");
+  if(businessBlock)businessBlock.innerHTML='<small>YOUR BUSINESS</small><strong>'+esc(business.name)+'</strong><span>'+esc(typeLabel(business.business_type))+' · '+esc(business.slug)+'</span>';
+  const small=document.querySelector(".manager-top small");if(small)small.textContent=business.name+" / MANAGER";
+  const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
+  const shell=managerFrameContent(business,view,"",enabledCodes,name,role);
+  const parsed=document.createElement("div");parsed.innerHTML=shell;
+  const sideNav=document.querySelector(".manager-sidebar nav"),nextNav=parsed.querySelector(".manager-sidebar nav");
+  if(sideNav&&nextNav)sideNav.replaceWith(nextNav);
+  const mobileNav=document.querySelector(".manager-mobile-nav"),nextMobile=parsed.querySelector(".manager-mobile-nav");
+  if(mobileNav&&nextMobile)mobileNav.replaceWith(nextMobile);
+  bindManagerFrame(id);
 }
 function navigateManager(id,view){
-  const label=managerNav.find(x=>x[0]===view)?.[1]||"page";
-  // The selected route is authoritative. Never roll back to the previous view
-  // after a transient data failure.
   app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
-  app.removeAttribute("aria-busy");
-  const heading=document.querySelector(".manager-top h1");if(heading)heading.textContent=label;
+  if(view!=="ordering")stopOrderWatch();
+  const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Page";
   document.querySelectorAll("[data-manager-view]").forEach(el=>el.classList.toggle("active",el.dataset.managerView===view));
-  const status=document.querySelector("#managerRouteStatus");if(status){status.textContent="● Connected";status.classList.remove("is-loading")}
-  return managerView(id,view).catch(error=>{
-    if(app.dataset.managerBusinessId!==id||app.dataset.managerView!==view)return;
-    const content=document.querySelector(".manager-content");
-    if(content){
-      content.innerHTML='<div class="notice" role="alert"><strong>'+esc(label)+' could not be opened.</strong><p>'+esc(error?.message||"Check your connection and retry.")+'</p><button class="secondary" id="managerRouteRetry">Retry</button></div>';
-      document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
-    }
-    showAppToast("Could not open "+label+": "+(error?.message||"check your connection."));
-  });
+  const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerSkeleton();
+  const status=document.querySelector("#managerRouteStatus");if(status)status.textContent="● Connected";
+  return managerView(id,view);
 }
-function bindManagerFrame(id){document.querySelectorAll("[data-manager-view]").forEach(el=>el.onclick=()=>navigateManager(id,el.dataset.managerView));const signout=document.querySelector("#managerSignout");if(signout)signout.onclick=async()=>{await supabase.auth.signOut();login()}}
-
 async function managerView(id,view="overview"){
   const viewEpoch=++managerNavigationEpoch;
   app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
   if(view!=="ordering")stopOrderWatch();
   let context=currentManagerContext(id);
-  if(!context){
-    const [business,membership,enabledRows]=await Promise.all([
-      supabase.from("businesses").select("id,name,business_type,slug,status").eq("id",id).single(),
-      supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),
-      supabase.from("business_modules").select("module_id,enabled").eq("business_id",id).eq("enabled",true)
-    ]);
+  const provisional={id,name:"Your business",business_type:"",slug:""};
+  if(!document.querySelector(".manager-shell")){
+    app.innerHTML=managerFrameContent(context?.business||provisional,view,managerSkeleton(),context?new Set((context.enabledRows||[]).map(x=>state.modules.find(m=>m.id===x.module_id)?.code).filter(Boolean)):null,managerWelcomeName(context?.membership,state.user),isAdmin()?"admin":"manager");
+    bindManagerFrame(id);
+  }else{
+    const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
+    document.querySelectorAll("[data-manager-view]").forEach(el=>el.classList.toggle("active",el.dataset.managerView===view));
+    const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerSkeleton();
+  }
+  try{
+    if(!context){
+      const [business,membership,enabledRows]=await Promise.all([
+        supabase.from("businesses").select("id,name,business_type,slug,status").eq("id",id).single(),
+        supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),
+        supabase.from("business_modules").select("module_id,enabled").eq("business_id",id).eq("enabled",true)
+      ]);
+      if(viewEpoch!==managerNavigationEpoch)return;
+      if(business.error)throw business.error;if(membership.error)throw membership.error;if(enabledRows.error)throw enabledRows.error;
+      cacheManagerContext(id,business.data,membership.data,enabledRows.data||[]);context=currentManagerContext(id);
+    }
     if(viewEpoch!==managerNavigationEpoch)return;
-    if(business.error)return error(business.error.message);
-    if(membership.error)return error(membership.error.message);
-    if(enabledRows.error)return error(enabledRows.error.message);
-    cacheManagerContext(id,business.data,membership.data,enabledRows.data||[]);context=currentManagerContext(id);
+    const business=context.business,membership=context.membership;
+    const accessRole=isAdmin()?"admin":membership?.role;
+    if(accessRole!=="admin"&&accessRole!=="manager")throw new Error("Manager access could not be verified. Ask the platform administrator to confirm your active membership.");
+    if(!canOpenBusinessWorkspace(isAdmin(),business.status))throw new Error("This business is not active.");
+    const enabledIds=new Set((context.enabledRows||[]).map(x=>x.module_id));
+    const enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
+    const name=managerWelcomeName(membership,state.user);
+    const allowed=managerNav.some(([key,,module])=>key===view&&canAccessManagerModule(accessRole,enabledCodes,module));
+    updateManagerShell(id,view,business,enabledCodes,name,accessRole);
+    if(!allowed){
+      const route=managerNav.find(([key])=>key===view),required=route?.[2],moduleName=state.modules.find(x=>x.code===required)?.name||required||"This section";
+      const content=document.querySelector(".manager-content");if(content)content.innerHTML='<div class="notice" role="status"><strong>'+esc(moduleName)+' is unavailable.</strong><p>This service is not enabled for this business.</p></div>';
+      return;
+    }
+    let markup;
+    if(view==="catalog"){
+      await catalogView(id,null,null,viewEpoch,context);
+      return;
+    }
+    if(view==="overview")markup=await managerOverview(id,business,name,enabledCodes);
+    else if(view==="ordering")markup=await managerOrders(id);
+    else if(view==="digital_page")markup=await managerDigitalPage(id,business);
+    else if(view==="qr")markup=await managerQr(id,business);
+    else if(view==="offers")markup=await managerOffers(id);
+    else if(view==="customers")markup=await managerCustomers(id);
+    else if(view==="inquiries")markup=await managerInquiries(id);
+    else if(view==="analytics")markup=await managerReports(id);
+    else if(view==="automation")markup=await managerAutomation(id);
+    else if(view==="team")markup=managerTeamContent(id);
+    else if(view==="more")markup=managerMoreContent(enabledCodes);
+    else markup=managerModuleSetup(managerNav.find(x=>x[0]===view)?.[1]||"Section",view);
+    if(viewEpoch!==managerNavigationEpoch)return;
+    const content=document.querySelector(".manager-content");if(!content)return;
+    content.innerHTML=markup||'<div class="notice">This section has no content yet.</div>';
+    if(view==="team")bindManagerStaff(id);
+    if(view==="ordering")bindManagerOrders(id);
+    if(view==="overview"){const date=document.querySelector("#overviewDate");if(date)date.onchange=()=>{app.dataset.overviewDate=date.value;navigateManager(id,"overview")}}
+    if(view==="inquiries")bindManagerInquiries(id);
+    if(view==="analytics")bindManagerReports(id);
+    if(view==="digital_page")bindManagerDigitalPage(id,business);
+    if(view==="qr")bindManagerQr(id,business);
+    if(view==="offers")bindManagerOffers(id);
+    if(view==="automation")bindManagerAutomation(id);
+    if(viewEpoch===managerNavigationEpoch&&view==="ordering")bindManagerFrame(id);
+  }catch(error){
+    if(viewEpoch!==managerNavigationEpoch)return;
+    const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error);
+    document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
   }
-  if(viewEpoch!==managerNavigationEpoch)return;
-  const business={data:context.business},membership={data:context.membership},enabledRows={data:context.enabledRows};
-  const accessRole=isAdmin()?"admin":membership.data?.role;
-  if(accessRole!=="admin" && accessRole!=="manager"){
-    const message='<div class="notice" role="alert"><strong>Manager access could not be verified.</strong><p>Your session is still open. Refresh this section or ask the platform administrator to confirm your active Manager membership.</p></div>';
-    app.innerHTML=managerFrameContent(business.data,view,message,new Set(),"Manager", "manager");bindManagerFrame(id);return;
-  }
-  if(!canOpenBusinessWorkspace(isAdmin(),business.data.status))return error("This business is not active.");
-  const enabledIds=new Set((enabledRows.data||[]).map(x=>x.module_id));
-  const enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
-  const name=managerWelcomeName(membership.data,state.user);
-  const title=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-  const allowed=managerNav.some(([key,,module])=>key===view&&canAccessManagerModule(accessRole,enabledCodes,module));
-  if(!allowed){
-    const route=managerNav.find(([key])=>key===view),required=route?.[2],moduleName=state.modules.find(x=>x.code===required)?.name||required||"this section";
-    const message='<div class="notice" role="alert"><strong>'+esc(moduleName)+' is unavailable.</strong><p>This service is not enabled for this business. Ask the platform administrator to review its access.</p></div>';
-    app.innerHTML=managerFrameContent(business.data,view,message,enabledCodes,managerWelcomeName(membership.data,state.user),accessRole);bindManagerFrame(id);return;
-  }
-  let content="";
-  if(view==="overview")content=await managerOverview(id,business.data,name,enabledCodes);
-  else if(view==="catalog")return catalogView(id,null,null,viewEpoch,context);
-  else if(view==="ordering")content=await managerOrders(id);
-  else if(view==="digital_page")content=await managerDigitalPage(id,business.data);
-  else if(view==="qr")content=await managerQr(id,business.data);
-  else if(view==="offers")content=await managerOffers(id);
-  else if(view==="customers")content=await managerCustomers(id);
-  else if(view==="inquiries")content=await managerInquiries(id);
-  else if(view==="analytics")content=await managerReports(id);
-  else if(view==="automation")content=await managerAutomation(id);
-  else if(view==="team")content=managerTeamContent(id);
-  else if(view==="more")content=managerMoreContent(enabledCodes);
-  else content=managerModuleSetup(title,view);
-  if(viewEpoch!==managerNavigationEpoch)return;
-  const b=business.data;
-  app.innerHTML=managerFrameContent(b,view,content,enabledCodes,name,accessRole);
-  bindManagerFrame(id);
-  if(view==="team")bindManagerStaff(id);
-  if(view==="ordering")bindManagerOrders(id);
-  if(view==="overview")document.querySelector("#overviewDate").onchange=event=>{app.dataset.overviewDate=event.target.value;managerView(id,"overview")};
-  if(view==="inquiries")bindManagerInquiries(id);
-  if(view==="analytics")bindManagerReports(id);
-  if(view==="digital_page")bindManagerDigitalPage(id,business.data);
-  if(view==="qr")bindManagerQr(id,business.data);
-  if(view==="offers")bindManagerOffers(id);
-  if(view==="automation")bindManagerAutomation(id);
 }
 
 function managerIcon(key){return ({overview:"◫",catalog:"▤",digital_page:"◉",qr:"▦",ordering:"▣",offers:"✦",customers:"♙",inquiries:"⌕",analytics:"▥",automation:"⚙",team:"♙",more:"•••"})[key]||"◇"}
