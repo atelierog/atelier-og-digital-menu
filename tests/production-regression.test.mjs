@@ -10,6 +10,7 @@ import { managerWelcomeName } from "../src/manager/welcome-name.mjs";
 import { groupManagerModules } from "../src/manager/module-dashboard.mjs";
 import { createTenantContextStore } from "../src/core/tenant-context.js";
 import { createNavigationController } from "../src/core/navigation.js";
+import { resolvePortal } from "../src/core/portal-routing.js";
 
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
@@ -360,7 +361,7 @@ test("Manager shell is mounted before business and module context requests resol
   const end = app.indexOf("function managerIcon", start);
   const route = app.slice(start, end);
   const shellMount = route.indexOf('app.innerHTML=managerFrameContent');
-  const contextRequest = route.indexOf('supabase.from("businesses")');
+  const contextRequest = route.indexOf("loadManagerWorkspace");
   assert.ok(shellMount >= 0 && contextRequest > shellMount);
   assert.match(route, /managerSkeleton\(\)/);
 });
@@ -378,4 +379,20 @@ test("Manager has desktop and mobile sign-out controls", () => {
   assert.match(app, /id="managerSignout"/);
   assert.match(app, /id="managerTopSignout"/);
   assert.match(app, /supabase\.auth\.signOut\(\)/);
+});
+
+test("portal routing maps each authenticated role to its own portal", () => {
+  assert.equal(resolvePortal("admin"), "super_admin");
+  assert.equal(resolvePortal("manager"), "manager");
+  assert.equal(resolvePortal("order_taker"), "order_taker");
+  assert.equal(resolvePortal("bill_counter"), "bill_counter");
+  assert.equal(resolvePortal("member"), "workspace");
+});
+
+test("all authenticated portals use extracted service boundaries", () => {
+  assert.match(app, /loadManagerWorkspace\\(supabase/);
+  assert.match(app, /loadStaffDeskData\\(supabase/);
+  assert.match(app, /loadSuperAdminDashboardData\\(supabase\\)/);
+  assert.match(app, /requestPublicMenu\\(url,SUPABASE_KEY/);
+  assert.match(app, /resolvePortal\\(/);
 });
