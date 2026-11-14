@@ -190,3 +190,35 @@ Retail Gemologist, Tanishq
 **One business platform. Multiple digital experiences.**
 
 </div>
+
+
+---
+
+## Canonical application source
+
+The recovery branch consolidates the recovered production frontend into one repository root:
+
+- `index.html` — application entry point
+- `src/app.js` — production application bootstrap, routing and workspaces
+- `src/auth/` — authentication and password helpers
+- `src/manager/` — business context, module access and Manager helpers
+- `src/style.css` and `src/platinum-theme.css` — existing visual design
+- `src/vendor/qrcode.min.js` — locally bundled QR generator
+- `supabase/functions/` — all seven active Edge Functions
+- `supabase/migrations/` — new verified migrations plus historical migration inventory
+
+The application uses a pinned local Supabase SDK and Vite production build. The UI remains unchanged; reliability fixes are implemented behind the existing screens.
+
+## Local validation
+
+Requirements: Node.js 24.x.
+
+```bash
+npm install
+npm run build
+node --test tests/*.test.mjs
+```
+
+Vercel build configuration is in `vercel.json`. The production release uses the repository root, `npm run build`, and `dist` as the output directory.
+
+See [Digital Vision Architecture](DIGITAL_VISION_ARCHITECTURE.md) and [Release Status](RELEASE_STATUS.md) for the role model, migration recovery, validation results and remaining release blockers.
