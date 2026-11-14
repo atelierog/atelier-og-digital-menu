@@ -57,7 +57,7 @@ Verification:
 
 ## Vercel preview status
 
-A preview was built from the recovered `src/` source before the Vite bundling changes. A new preview for the current Vite build could not be created because Vercel returned HTTP 402: the team reached its limit of more than 100 deployments per day; retry is available after 24 hours. The earlier preview is stale and must not be used for final acceptance.
+A preview was built from the recovered `src/` source before the Vite bundling changes. A new preview for the current Vite build could not be created because Vercel returned HTTP 402: the team reached its limit of more than 100 deployments per day; retry is available after 24 hours. The latest Vercel preview is still from commit `b4e3c016` and serves the pre-normalization root application; it is stale and must not be used for final acceptance. The new canonical-root branch build is verified in GitHub Actions, but it still needs a fresh Vercel preview after the deployment quota resets.
 
 The Vercel project settings were restored to their previous values after preview testing. For the eventual release, use:
 
@@ -67,7 +67,7 @@ The Vercel project settings were restored to their previous values after preview
 - Output directory: `dist` (from `vercel.json`)
 - Node: `24.x`
 
-Production deployment and the production domain were left untouched.
+Production deployment and the production domain were left untouched. The active production deployment remains `dpl_HmoiyUhpLe5GVsoT6xTTa2HqsSVV` (READY); `https://digitalvision.atelierog.co.in` returned HTTP 200 during verification.
 
 ## Remaining items
 
