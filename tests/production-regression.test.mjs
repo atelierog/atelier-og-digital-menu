@@ -390,9 +390,9 @@ test("portal routing maps each authenticated role to its own portal", () => {
 });
 
 test("all authenticated portals use extracted service boundaries", () => {
-  assert.match(app, /loadManagerWorkspace\\(supabase/);
-  assert.match(app, /loadStaffDeskData\\(supabase/);
-  assert.match(app, /loadSuperAdminDashboardData\\(supabase\\)/);
-  assert.match(app, /requestPublicMenu\\(url,SUPABASE_KEY/);
-  assert.match(app, /resolvePortal\\(/);
+  assert.match(app, /loadManagerWorkspace\(supabase/);
+  assert.match(app, /loadStaffDeskData\(supabase/);
+  assert.match(app, /loadSuperAdminDashboardData\(supabase\)/);
+  assert.match(app, /requestPublicMenu\(url,SUPABASE_KEY/);
+  assert.match(app, /resolvePortal\(/);
 });
