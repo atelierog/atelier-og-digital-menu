@@ -70,12 +70,12 @@ The public order command recalculates item prices, discounts and tax on the serv
 2. The live Supabase project has seven active Edge Functions; the previous repository source only tracked three. All seven active function sources have now been copied into `supabase/functions/` on this branch.
 3. The live database reports 21 applied migrations. The repository had only two differently named/timestamped SQL files, so the exact applied migration history cannot be inferred from those files. See `supabase/REMOTE_MIGRATION_HISTORY.md`.
 4. Live RLS policies currently allow business managers to insert, update and delete `business_modules`. Module entitlements should be controlled by Super Admin. A corrective migration and atomic RPC are staged on this branch; they have not been applied to production.
-5. Super Admin's existing module-save handler deleted every entitlement before re-inserting the selection. A failed insert could leave the business with no modules. The recovery branch changes this to one transactional RPC.
+5. Super Admin's previous module-save handler deleted every entitlement before re-inserting the selection. A failed insert could leave the business with no modules. The recovery branch now calls the transactional RPC; the database function is live.
 6. The Order Taker/Bill Counter workspace previously fetched every historical `order_items` row on each refresh. The recovery branch now limits the query to the 150 displayed orders.
 7. Manager overview previously scanned order items across all dates. The recovery branch now scopes that query to the selected activity date.
 8. Customer order-status tracking previously polled every second. The recovery branch changes the interval to ten seconds.
 9. QR rendering still imports `qrcode` from `esm.sh` at runtime. This remains an external dependency and should be locally bundled in a later build-system change.
-10. Existing automated tests read the older root-level app, not the recovered production `src/app.js`. Production-path regression coverage is being added.
+10. Existing automated tests read the older root-level app, not the recovered production `src/app.js`. Production-path regression coverage is now included. GitHub Actions reports 246/246 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
 
 ## Target architecture and staged evolution
 
