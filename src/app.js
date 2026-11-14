@@ -237,19 +237,21 @@ function managerFrameContent(b,view,content,enabledCodes,name,role="manager"){
   return '<div class="manager-shell"><aside class="manager-sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><div class="manager-business"><small>YOUR BUSINESS</small><strong>'+esc(b.name)+'</strong><span>'+esc(typeLabel(b.business_type))+' · '+esc(b.slug)+'</span></div><nav>'+nav+'</nav><button id="managerSignout" class="ghost">Sign out</button></aside><main class="manager-main"><header class="manager-top"><div><small>'+esc(b.name)+' / MANAGER</small><h1>'+esc(title)+'</h1></div><span class="manager-connected" id="managerRouteStatus" role="status" aria-live="polite">● Connected</span></header><section class="manager-content">'+content+'</section><nav class="manager-mobile-nav">'+mobileNav+'</nav></main></div>';
 }
 function navigateManager(id,view){
-  const previousView=app.dataset.managerView||"overview",label=managerNav.find(x=>x[0]===view)?.[1]||"page",request=String(++managerNavigationRequest);
-  app.dataset.managerPendingView=view;app.dataset.managerPendingRequest=request;app.setAttribute("aria-busy","true");
-  const status=document.querySelector("#managerRouteStatus");if(status){status.textContent="Loading "+label+"…";status.classList.add("is-loading")}
-  // Keep the current page visible while the next route loads. Never blank the
-  // workspace or replace it with a full-page loading panel during navigation.
-  return managerView(id,view).then(()=>{
-    if(app.dataset.managerPendingRequest!==request)return;
-    delete app.dataset.managerPendingView;delete app.dataset.managerPendingRequest;app.removeAttribute("aria-busy");
-    const nextStatus=document.querySelector("#managerRouteStatus");if(nextStatus){nextStatus.textContent="● Connected";nextStatus.classList.remove("is-loading")}
-  }).catch(error=>{
-    if(app.dataset.managerPendingRequest!==request)return;
-    delete app.dataset.managerPendingView;delete app.dataset.managerPendingRequest;app.dataset.managerView=previousView;saveManagerView(id,previousView);app.removeAttribute("aria-busy");
-    const routeStatus=document.querySelector("#managerRouteStatus");if(routeStatus){routeStatus.textContent="● Connected";routeStatus.classList.remove("is-loading")}
+  const label=managerNav.find(x=>x[0]===view)?.[1]||"page";
+  // The selected route is authoritative. Never roll back to the previous view
+  // after a transient data failure.
+  app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
+  app.removeAttribute("aria-busy");
+  const heading=document.querySelector(".manager-top h1");if(heading)heading.textContent=label;
+  document.querySelectorAll("[data-manager-view]").forEach(el=>el.classList.toggle("active",el.dataset.managerView===view));
+  const status=document.querySelector("#managerRouteStatus");if(status){status.textContent="● Connected";status.classList.remove("is-loading")}
+  return managerView(id,view).catch(error=>{
+    if(app.dataset.managerBusinessId!==id||app.dataset.managerView!==view)return;
+    const content=document.querySelector(".manager-content");
+    if(content){
+      content.innerHTML='<div class="notice" role="alert"><strong>'+esc(label)+' could not be opened.</strong><p>'+esc(error?.message||"Check your connection and retry.")+'</p><button class="secondary" id="managerRouteRetry">Retry</button></div>';
+      document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
+    }
     showAppToast("Could not open "+label+": "+(error?.message||"check your connection."));
   });
 }
@@ -609,7 +611,16 @@ async function catalogView(id,editItemId=null,editCategoryId=null,expectedEpoch=
   });
 }
 
-function error(m){app.innerHTML='<main class="auth-page"><div class="auth-card"><h1>Something went wrong</h1><p class="muted">'+esc(m)+'</p><button class="primary" onclick="location.reload()">Retry</button></div></main>'}
+function error(m){
+  const managerContent=document.querySelector(".manager-content");
+  if(managerContent&&app.dataset.managerBusinessId){
+    const businessId=app.dataset.managerBusinessId,view=app.dataset.managerView||"overview";
+    managerContent.innerHTML='<div class="notice" role="alert"><strong>This section could not be loaded.</strong><p>'+esc(m)+'</p><button class="secondary" id="managerSectionRetry">Retry</button></div>';
+    document.querySelector("#managerSectionRetry")?.addEventListener("click",()=>navigateManager(businessId,view),{once:true});
+    return;
+  }
+  app.innerHTML='<main class="auth-page"><div class="auth-card"><h1>Something went wrong</h1><p class="muted">'+esc(m)+'</p><button class="primary" onclick="location.reload()">Retry</button></div></main>';
+}
 async function load(){
   const u=await supabase.auth.getUser();state.user=u.data.user;if(!state.user)return login();
   if(state.user.app_metadata?.must_change_password){renderFirstLoginPassword({app,supabase,boot,esc});return}
