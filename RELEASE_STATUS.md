@@ -46,7 +46,7 @@ Verification:
 
 ## Automated checks
 
-- GitHub Actions: 178 tests passed, 0 failed on the recovery branch.
+- GitHub Actions: 179 tests passed, 0 failed on the recovery branch.
 - Vite production build succeeded.
 - Build output: main JavaScript bundle 334.61 kB (86.04 kB gzip), CSS 55.52 kB (11.87 kB gzip), local QR asset 19.92 kB.
 - These tests are unit/static regression tests. Full browser end-to-end tests for all live roles are still required.
