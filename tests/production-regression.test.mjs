@@ -8,6 +8,8 @@ import { canOpenBusinessWorkspace } from "../src/src/manager/business-access.mjs
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
   app,
+  packageJson,
+  viteConfig,
   indexHtml,
   qrLibrary,
   qrLicense,
@@ -23,6 +25,8 @@ const [
   firstLogin,
 ] = await Promise.all([
   read("../src/app.js"),
+  read("../src/package.json"),
+  read("../src/vite.config.js"),
   read("../src/index.html"),
   read("../src/vendor/qrcode.min.js"),
   read("../src/vendor/QRCODE-LICENSE.txt"),
@@ -62,6 +66,13 @@ for (const status of ["active", "suspended", "archived", "pending", "deleted"]) 
     });
   }
 }
+
+test("Supabase SDK is bundled from a pinned local npm dependency", () => {
+  assert.match(app, /from "@supabase\/supabase-js"/);
+  assert.doesNotMatch(app, /https:\/\/esm\.sh\/@supabase\/supabase-js/);
+  assert.match(packageJson, /"@supabase\/supabase-js": "2\.119\.0"/);
+  assert.match(viteConfig, /base: "\.\/"/);
+});
 
 test("production app parses as an ES module", () => {
   assert.doesNotThrow(() => execFileSync(process.execPath, ["--input-type=module", "--check"], { input: app }));
