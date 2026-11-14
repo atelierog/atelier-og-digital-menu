@@ -183,12 +183,12 @@ async function workspace(){
   const r=await supabase.from("business_members").select("business_id,role,display_name,status").eq("user_id",state.user.id).eq("status","active");
   if(r.error)return error(r.error.message);
   if(!r.data?.length)return shell("Workspace",empty("No business assigned","Ask a platform administrator to add your account to a business."));
-  if(r.data.length===1)return workspaceForBusiness(r.data[0].business_id);
+  if(r.data.length===1)return workspaceForBusiness(r.data[0].business_id,r.data[0]);
   const ids=r.data.map(x=>x.business_id);
   const bq=await supabase.from("businesses").select("*").in("id",ids).order("name");
   if(bq.error)return error(bq.error.message);
   shell("Choose business",'<div class="panel"><div class="panel-head"><div><h2>Your businesses</h2><p>Select the business workspace you want to open.</p></div></div><div class="business-list">'+(bq.data||[]).map(b=>row(b)).join("")+'</div></div>');
-  document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>workspaceForBusiness(x.dataset.business));
+  document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>workspaceForBusiness(x.dataset.business,r.data.find(m=>m.business_id===x.dataset.business)));
 }
 
 const managerNav=[
@@ -289,13 +289,15 @@ async function managerView(id,view="overview"){
   }
   try{
     if(!context){
-      const [business,membership,enabledRows]=await Promise.all([
+      const [business,membership,enabledRows,modules]=await Promise.all([
         supabase.from("businesses").select("id,name,business_type,slug,status").eq("id",id).single(),
         supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),
-        supabase.from("business_modules").select("module_id,enabled").eq("business_id",id).eq("enabled",true)
+        supabase.from("business_modules").select("module_id,enabled").eq("business_id",id).eq("enabled",true),
+        state.modules.length?Promise.resolve({data:state.modules,error:null}):supabase.from("modules").select("*").order("name")
       ]);
       if(!managerNavigation.isCurrent(viewEpoch))return;
-      if(business.error)throw business.error;if(membership.error)throw membership.error;if(enabledRows.error)throw enabledRows.error;
+      if(business.error)throw business.error;if(membership.error)throw membership.error;if(enabledRows.error)throw enabledRows.error;if(modules.error)throw modules.error;
+      state.modules=modules.data||[];
       cacheManagerContext(id,business.data,membership.data,enabledRows.data||[]);context=currentManagerContext(id);
     }
     if(!managerNavigation.isCurrent(viewEpoch))return;
@@ -452,7 +454,8 @@ function bindManagerOffers(id){const form=document.querySelector("#offerForm");i
 async function managerAutomation(id){const r=await supabase.from("restaurant_settings").select("notify_new_order,notify_customer_status").eq("business_id",id).maybeSingle();if(r.error)return managerModuleSetup("Automation","automation",r.error.code==="PGRST205"?"Automation preferences need the restaurant settings migration.":r.error.message);const s=r.data||{};return '<div class="manager-pagehead"><div><span class="eyebrow">AUTOMATION</span><h2>Notifications</h2><p>Choose the in-app notifications this restaurant wants to use.</p></div></div><div class="panel"><form id="automationForm" class="automation-list"><label><input type="checkbox" id="notifyNewOrder" '+(s.notify_new_order!==false?"checked":"")+'><span><strong>New order alert</strong><small>Show new customer orders on the order desk.</small></span></label><label><input type="checkbox" id="notifyCustomerStatus" '+(s.notify_customer_status!==false?"checked":"")+'><span><strong>Customer status updates</strong><small>Allow the customer menu to show accepted, rejected and delivered order status.</small></span></label><button class="primary">Save notification preferences</button><span id="automationFeedback" class="compact-note" aria-live="polite"></span></form></div>'}
 function bindManagerAutomation(id){const form=document.querySelector("#automationForm");if(form)form.onsubmit=async e=>{e.preventDefault();const button=e.submitter,feedback=document.querySelector("#automationFeedback");button.disabled=true;button.textContent="Saving…";const r=await supabase.from("restaurant_settings").upsert({business_id:id,notify_new_order:document.querySelector("#notifyNewOrder").checked,notify_customer_status:document.querySelector("#notifyCustomerStatus").checked},{onConflict:"business_id"});button.disabled=false;button.textContent="Save notification preferences";feedback.textContent=r.error?r.error.message:"Preferences saved."}}
 
-async function workspaceForBusiness(id){
+async function workspaceForBusiness(id,knownMembership=null){
+  if(!isAdmin()&&knownMembership?.role==="manager")return managerView(id,savedManagerView(id));
   const [bq,mq,mmq]=await Promise.all([
     supabase.from("businesses").select("*").eq("id",id).single(),
     supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),
@@ -657,10 +660,9 @@ async function load(){
     const [b,m,mc]=await Promise.all([supabase.from("businesses").select("*").order("created_at",{ascending:false}),supabase.from("modules").select("*").order("name"),supabase.from("business_members").select("id",{count:"exact",head:true})]);
     if(b.error)return error(b.error.message);if(m.error)return error(m.error.message);state.businesses=b.data||[];state.modules=m.data||[];state.memberCount=mc.error?null:mc.count;
   }else{
-    // Staff and Manager sessions do not need the platform-wide business
-    // directory or member count. Fetch only module metadata needed by Manager.
-    const m=await supabase.from("modules").select("*").order("name");
-    if(m.error)return error(m.error.message);state.modules=m.data||[];
+    // Non-admin portals fetch only the data their own workspace requires.
+    // Manager module metadata is loaded after its shell is mounted.
+    state.modules=[];
   }
 }
 function boot(){
