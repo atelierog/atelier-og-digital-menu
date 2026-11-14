@@ -15,6 +15,7 @@ import { resolvePortal } from "../src/core/portal-routing.js";
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
   app,
+  managerShell,
   packageJson,
   viteConfig,
   indexHtml,
@@ -34,6 +35,7 @@ const [
   firstLogin,
 ] = await Promise.all([
   read("../src/app.js"),
+  read("../src/features/manager/manager-shell.js"),
   read("../package.json"),
   read("../vite.config.js"),
   read("../index.html"),
@@ -173,7 +175,7 @@ test("production login module parses as an ES module", () => {
 
 test("Manager route and navigation share one role-aware entitlement guard", () => {
   assert.match(app, /canAccessManagerModule\(accessRole,enabledCodes,module\)/);
-  assert.match(app, /canAccessManagerModule\(role,enabledCodes,module\)/);
+  assert.match(managerShell, /canAccessManagerModule\(role,enabledCodes,module\)/);
 });
 
 test("Super Admin module changes use one atomic database RPC", () => {
@@ -376,8 +378,8 @@ test("Manager navigation renders into the existing content region, not the app r
 });
 
 test("Manager has desktop and mobile sign-out controls", () => {
-  assert.match(app, /id="managerSignout"/);
-  assert.match(app, /id="managerTopSignout"/);
+  assert.match(managerShell, /id="managerSignout"/);
+  assert.match(managerShell, /id="managerTopSignout"/);
   assert.match(app, /supabase\.auth\.signOut\(\)/);
 });
 
