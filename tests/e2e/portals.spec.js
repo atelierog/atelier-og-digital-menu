@@ -13,7 +13,7 @@ const enabledRows = modules.map((module) => ({ module_id: module.id, enabled: tr
 const business = { id: businessId, name: "Browser Test Cafe", business_type: "restaurant", slug: "browser-test-cafe", status: "active" };
 const membership = { business_id: businessId, user_id: userId, role: "manager", display_name: "Test Manager", status: "active" };
 
-async function installSupabaseMocks(page, role = "manager") {
+async function installSupabaseMocks(page, role = "manager", options = {}) {
   const user = {
     id: role === "admin" ? "admin-user-1" : userId,
     email: role === "admin" ? "admin@example.test" : "manager@example.test",
@@ -46,8 +46,10 @@ async function installSupabaseMocks(page, role = "manager") {
     });
     if (path.endsWith("/auth/v1/user")) return json(user);
     if (path.endsWith("/auth/v1/logout")) return route.fulfill({ status: 204, body: "" });
-    if (path.endsWith("/rest/v1/modules")) return json(modules);
+    if (path.endsWith("/rest/v1/modules")) return options.failModules ? json({ code: "UPSTREAM", message: "Temporary module lookup failure" }, 503) : json(modules);
     if (path.endsWith("/rest/v1/businesses")) {
+      if (options.businessGate) await options.businessGate;
+      if (options.failBusiness) return json({ code: "UPSTREAM", message: "Temporary business lookup failure" }, 503);
       if (role === "admin" && !url.searchParams.has("id")) return json([business]);
       return json(business);
     }
@@ -69,13 +71,9 @@ async function installSupabaseMocks(page, role = "manager") {
 }
 
 test("Manager shell mounts before slow business context returns", async ({ page }) => {
-  await installSupabaseMocks(page);
   let releaseBusiness;
   const businessGate = new Promise((resolve) => { releaseBusiness = resolve; });
-  await page.route("https://qwyquvufneolyesfiipf.supabase.co/rest/v1/businesses**", async (route) => {
-    await businessGate;
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(business) });
-  });
+  await installSupabaseMocks(page, "manager", { businessGate });
   await page.goto("/?login=manager");
   await expect(page.locator(".manager-shell")).toBeVisible();
   await expect(page.locator("#managerSignout")).toBeVisible();
@@ -168,14 +166,7 @@ test("Manager sign-out remains reachable on a mobile viewport", async ({ page })
 });
 
 test("A Manager context failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
-  await installSupabaseMocks(page);
-  await page.route("https://qwyquvufneolyesfiipf.supabase.co/rest/v1/modules**", async (route) => {
-    await route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ code: "UPSTREAM", message: "Temporary module lookup failure" }),
-    });
-  });
+  await installSupabaseMocks(page, "manager", { failModules: true });
   await page.goto("/?login=manager");
   await expect(page.locator(".manager-shell")).toBeVisible();
   await expect(page.locator(".manager-content [role=alert]")).toContainText("could not be loaded");
