@@ -1,3 +1,5 @@
 [functions.public-menu]
 verify_jwt = false
 
+[functions.staff-password-reset]
+verify_jwt = false
