@@ -8,6 +8,7 @@ import { bootCustomerMenu } from "./features/customer/public-menu.js";
 import { renderStaffWorkspace } from "./features/staff/staff-workspace.js";
 import { renderSuperAdminOverview } from "./features/super-admin/overview-screen.js";
 import { managerFrameContent, managerSkeleton, managerAwait, managerInlineError } from "./features/manager/manager-shell.js";
+import { createManagerRuntime } from "./features/manager/manager-runtime.js";
 import { createBusinessId } from "./manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
 import { managerWelcomeName } from "./manager/welcome-name.mjs";
@@ -26,6 +27,7 @@ const state = { user:null, businesses:[], modules:[] };
 let activeOrderWatch = null,deferredInstallPrompt=null;
 const managerNavigation=createNavigationController();
 const managerContexts=createTenantContextStore(30000);
+let managerRuntime=null;
 let bootPromise=null;
 let workspaceBooted=false,workspaceBootTimer=null;
 window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();deferredInstallPrompt=event;window.deferredInstallPrompt=event});
@@ -235,110 +237,10 @@ function saveManagerView(businessId,view){
   try{sessionStorage.setItem("dv-manager-view:"+state.user?.id+":"+businessId,view)}catch{}
 }
 
-function bindManagerFrame(id){
-  document.querySelectorAll("[data-manager-view]").forEach(el=>el.onclick=()=>navigateManager(id,el.dataset.managerView));
-  const signOut=async()=>{const buttons=[document.querySelector("#managerSignout"),document.querySelector("#managerTopSignout")].filter(Boolean);buttons.forEach(b=>{b.disabled=true;b.textContent="Signing out…"});stopOrderWatch();managerNavigation.invalidate();managerContexts.clear();try{const result=await supabase.auth.signOut();if(result.error)throw result.error;sessionStorage.removeItem("dv-manager-view:"+state.user?.id+":"+id);state.user=null;login()}catch(error){buttons.forEach(b=>{b.disabled=false;b.textContent="Sign out"});showAppToast("Could not sign out: "+error.message)}};
-  ["#managerSignout","#managerTopSignout"].forEach(selector=>{const button=document.querySelector(selector);if(button)button.onclick=signOut});
-}
-function updateManagerShell(id,view,business,enabledCodes,name,role){
-  const current=document.querySelector(".manager-shell");
-  if(!current){app.innerHTML=managerFrameContent({b:business,view,content:managerSkeleton(),enabledCodes,name,role,managerNav,managerIcon,canAccessManagerModule,esc,typeLabel});bindManagerFrame(id);return}
-  const businessBlock=document.querySelector(".manager-business");
-  if(businessBlock)businessBlock.innerHTML='<small>YOUR BUSINESS</small><strong>'+esc(business.name)+'</strong><span>'+esc(typeLabel(business.business_type))+' · '+esc(business.slug)+'</span>';
-  const small=document.querySelector(".manager-top small");if(small)small.textContent=business.name+" / MANAGER";
-  const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-  const shell=managerFrameContent({b:business,view,content:"",enabledCodes,name,role,managerNav,managerIcon,canAccessManagerModule,esc,typeLabel});
-  const parsed=document.createElement("div");parsed.innerHTML=shell;
-  const sideNav=document.querySelector(".manager-sidebar nav"),nextNav=parsed.querySelector(".manager-sidebar nav");
-  if(sideNav&&nextNav)sideNav.replaceWith(nextNav);
-  const mobileNav=document.querySelector(".manager-mobile-nav"),nextMobile=parsed.querySelector(".manager-mobile-nav");
-  if(mobileNav&&nextMobile)mobileNav.replaceWith(nextMobile);
-  bindManagerFrame(id);
-}
-function navigateManager(id,view){
-  app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
-  if(view!=="ordering")stopOrderWatch();
-  const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Page";
-  document.querySelectorAll("[data-manager-view]").forEach(el=>el.classList.toggle("active",el.dataset.managerView===view));
-  const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerSkeleton();
-  const status=document.querySelector("#managerRouteStatus");if(status)status.textContent="● Session active";
-  return managerView(id,view);
-}
-async function managerView(id,view="overview",knownMembership=null){
-  const viewEpoch=managerNavigation.begin();
-  app.dataset.managerRequestEpoch=String(viewEpoch);
-  app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
-  if(view!=="ordering")stopOrderWatch();
-  let context=currentManagerContext(id);
-  const provisional={id,name:"Your business",business_type:"",slug:""};
-  if(!document.querySelector(".manager-shell")){
-    app.innerHTML=managerFrameContent({b:context?.business||provisional,view,content:managerSkeleton(),enabledCodes:context?new Set((context.enabledRows||[]).map(x=>state.modules.find(m=>m.id===x.module_id)?.code).filter(Boolean)):null,name:managerWelcomeName(context?.membership,state.user),role:isAdmin()?"admin":"manager",managerNav,managerIcon,canAccessManagerModule,esc,typeLabel});
-    bindManagerFrame(id);
-  }else{
-    const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-    document.querySelectorAll("[data-manager-view]").forEach(el=>el.classList.toggle("active",el.dataset.managerView===view));
-    const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerSkeleton();
-  }
-  try{
-    if(!context){
-      const loaded=await managerAwait(loadManagerWorkspace(supabase,id,state.user.id,state.modules,knownMembership),"Manager workspace",4000);
-      if(!managerNavigation.isCurrent(viewEpoch))return;
-      state.modules=loaded.modules;
-      cacheManagerContext(id,loaded.business,loaded.membership,loaded.enabledRows);context=currentManagerContext(id);
-    }
-    if(!managerNavigation.isCurrent(viewEpoch))return;
-    const business=context.business,membership=context.membership;
-    const accessRole=isAdmin()?"admin":membership?.role;
-    if(accessRole!=="admin"&&accessRole!=="manager")throw new Error("Manager access could not be verified. Ask the platform administrator to confirm your active membership.");
-    if(!canOpenBusinessWorkspace(isAdmin(),business.status))throw new Error("This business is not active.");
-    const enabledIds=new Set((context.enabledRows||[]).map(x=>x.module_id));
-    const enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
-    const name=managerWelcomeName(membership,state.user);
-    const allowed=managerNav.some(([key,,module])=>key===view&&canAccessManagerModule(accessRole,enabledCodes,module));
-    updateManagerShell(id,view,business,enabledCodes,name,accessRole);
-    if(!allowed){
-      const route=managerNav.find(([key])=>key===view),required=route?.[2],moduleName=state.modules.find(x=>x.code===required)?.name||required||"This section";
-      const content=document.querySelector(".manager-content");if(content)content.innerHTML='<div class="notice" role="status"><strong>'+esc(moduleName)+' is unavailable.</strong><p>This service is not enabled for this business.</p></div>';
-      return;
-    }
-    let markup;
-    if(view==="catalog"){
-      await managerAwait(catalogView(id,null,null,viewEpoch,context),"Menu");
-      return;
-    }
-    if(view==="overview")markup=await managerAwait(managerOverview(id,business,name,enabledCodes),"Overview");
-    else if(view==="ordering")markup=await managerAwait(managerOrders(id),"Orders");
-    else if(view==="digital_page")markup=await managerAwait(managerDigitalPage(id,business),"Digital menu");
-    else if(view==="qr")markup=await managerAwait(managerQr(id,business),"Tables & QR");
-    else if(view==="offers")markup=await managerAwait(managerOffers(id),"Offers");
-    else if(view==="customers")markup=await managerAwait(managerCustomers(id),"Customers");
-    else if(view==="inquiries")markup=await managerAwait(managerInquiries(id),"Inquiries");
-    else if(view==="analytics")markup=await managerAwait(managerReports(id),"Reports");
-    else if(view==="automation")markup=await managerAwait(managerAutomation(id),"Automation");
-    else if(view==="team")markup=managerTeamContent(id);
-    else if(view==="more")markup=managerMoreContent(enabledCodes);
-    else markup=managerModuleSetup(managerNav.find(x=>x[0]===view)?.[1]||"Section",view);
-    if(!managerNavigation.isCurrent(viewEpoch)||markup===undefined)return;
-    const content=document.querySelector(".manager-content");if(!content)return;
-    content.innerHTML=markup||'<div class="notice">This section has no content yet.</div>';
-    if(view==="team")bindManagerStaff(id);
-    if(view==="ordering")bindManagerOrders(id);
-    if(view==="overview"){const date=document.querySelector("#overviewDate");if(date)date.onchange=()=>{app.dataset.overviewDate=date.value;navigateManager(id,"overview")}}
-    if(view==="inquiries")bindManagerInquiries(id);
-    if(view==="analytics")bindManagerReports(id);
-    if(view==="digital_page")bindManagerDigitalPage(id,business);
-    if(view==="qr")bindManagerQr(id,business);
-    if(view==="offers")bindManagerOffers(id);
-    if(view==="automation")bindManagerAutomation(id);
-    if(managerNavigation.isCurrent(viewEpoch)&&view==="ordering")bindManagerFrame(id);
-  }catch(error){
-    console.error("[Digital Vision] Manager section failed",view,id,error);
-    if(app.dataset.managerRequestEpoch!==String(viewEpoch))return;
-    const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error,esc);
-    if(error?.managerTimedOut)managerNavigation.invalidate();
-    document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
-  }
-}
+function bindManagerFrame(id){return managerRuntime.bindManagerFrame(id)}
+function updateManagerShell(...args){return managerRuntime.updateManagerShell(...args)}
+function navigateManager(...args){return managerRuntime.navigateManager(...args)}
+function managerView(...args){return managerRuntime.managerView(...args)}
 
 function managerIcon(key){return ({overview:"◫",catalog:"▤",digital_page:"◉",qr:"▦",ordering:"▣",offers:"✦",customers:"♙",inquiries:"⌕",analytics:"▥",automation:"⚙",team:"♙",more:"•••"})[key]||"◇"}
 function managerMoreContent(enabled){const links=[["digital_page","Restaurant page","Set the guest-facing details and menu theme"],["offers","Offers","Manage automatic discounts"],["customers","Customers","View customer records"],["inquiries","Inquiries","Review guest questions"],["automation","Notifications","Choose order and status alerts"],["team","Team access","Manage Order Taker and Bill Counter access"]].filter(([key])=>key==="team"||enabled.has(key));return '<div class="manager-pagehead"><div><span class="eyebrow">WORKSPACE</span><h2>More tools</h2><p>Restaurant setup and daily management.</p></div></div><div class="manager-more-grid">'+links.map(([key,label,detail])=>'<button class="manager-module-card" data-manager-view="'+key+'"><span>'+managerIcon(key)+'</span><strong>'+esc(label)+'</strong><small>'+esc(detail)+'</small></button>').join("")+'</div>'}
@@ -643,6 +545,20 @@ supabase.auth.onAuthStateChange((event,s)=>{
   if(event==="SIGNED_OUT"){stopOrderWatch();managerNavigation.invalidate();managerContexts.clear();state.user=null;login()}
 });
 if(!customerMenuMode){app.innerHTML='<main class="auth-page" role="status"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><p class="muted">Loading your workspace…</p></div></main>';workspaceBootTimer=setTimeout(()=>{if(workspaceBooted)return;if(state.user)errorScreen("Your workspace is taking longer than expected. Check your connection and try again.");else login("We couldn’t verify your sign-in. Please sign in again.")},12000)}
+managerRuntime=createManagerRuntime({
+  app,state,supabase,managerNavigation,managerContexts,managerNav,
+  managerFrameContent,managerSkeleton,managerAwait,managerInlineError,
+  managerWelcomeName,canOpenBusinessWorkspace,canAccessManagerModule,
+  esc,typeLabel,isAdmin,stopOrderWatch,loadManagerWorkspace,
+  cacheManagerContext,currentManagerContext,saveManagerView,managerIcon,
+  managerOverview,managerOrders,managerDigitalPage,managerQr,managerOffers,
+  managerCustomers,managerInquiries,managerReports,managerAutomation,
+  managerTeamContent,managerMoreContent,managerModuleSetup,catalogView,
+  bindManagerStaff,bindManagerOrders,bindManagerInquiries,bindManagerReports,
+  bindManagerDigitalPage,bindManagerQr,bindManagerOffers,bindManagerAutomation,
+  showAppToast,login
+});
+
 if(customerMenuMode)bootCustomerMenu({app,esc,supabaseUrl:SUPABASE_URL,supabaseKey:SUPABASE_KEY,statusPollIntervalMs:CUSTOMER_STATUS_POLL_INTERVAL_MS});else boot().catch(()=>{workspaceBooted=true;clearTimeout(workspaceBootTimer);errorScreen("We couldn’t open your workspace. Check your connection and try again.")});
 
 function errorScreen(message){

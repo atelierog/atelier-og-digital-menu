@@ -15,6 +15,7 @@ import { resolvePortal } from "../src/core/portal-routing.js";
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
 const [
   app,
+  managerRuntime,
   managerShell,
   packageJson,
   viteConfig,
@@ -35,6 +36,7 @@ const [
   firstLogin,
 ] = await Promise.all([
   read("../src/app.js"),
+  read("../src/features/manager/manager-runtime.js"),
   read("../src/features/manager/manager-shell.js"),
   read("../package.json"),
   read("../vite.config.js"),
@@ -174,7 +176,7 @@ test("production login module parses as an ES module", () => {
 });
 
 test("Manager route and navigation share one role-aware entitlement guard", () => {
-  assert.match(app, /canAccessManagerModule\(accessRole,enabledCodes,module\)/);
+  assert.match(managerRuntime, /canAccessManagerModule\(accessRole,enabledCodes,module\)/);
   assert.match(managerShell, /canAccessManagerModule\(role,enabledCodes,module\)/);
 });
 
@@ -290,13 +292,14 @@ test("module catalogue remains grouped without hiding unknown future modules", (
 
 
 test("Manager navigation never rolls back or shows a blocking route-loading label", () => {
-  const start = app.indexOf("function navigateManager(id,view)");
-  const end = app.indexOf("function bindManagerFrame(id)", start);
-  const route = app.slice(start, end);
+  const start = managerRuntime.indexOf("function navigateManager(id,view)");
+  const end = managerRuntime.indexOf("async function managerView(id,view=", start);
+  const route = managerRuntime.slice(start, end);
   assert.doesNotMatch(route, /previousView|saveManagerView\(id,previousView\)|Loading \+label/);
   assert.match(route, /app\.dataset\.managerView=view/);
   assert.match(route, /return managerView\(id,view\)/);
-  assert.match(route, /Retry/);
+  const managerHandler = managerRuntime.slice(end, managerRuntime.indexOf("return { bindManagerFrame", end));
+  assert.match(managerHandler, /Retry/);
 });
 
 test("Manager feature errors stay inside the Manager shell", () => {
@@ -308,9 +311,9 @@ test("Manager feature errors stay inside the Manager shell", () => {
   assert.match(route, /app\.innerHTML/);
 });
 test("Manager route authorization failures never redirect to the generic workspace", () => {
-  const start = app.indexOf("async function managerView(id,view=");
-  const end = app.indexOf("function managerIcon", start);
-  const route = app.slice(start, end);
+  const start = managerRuntime.indexOf("async function managerView(id,view=");
+  const end = managerRuntime.indexOf("return { bindManagerFrame", start);
+  const route = managerRuntime.slice(start, end);
   assert.doesNotMatch(route, /return workspace\(\)/);
   assert.match(route, /Manager access could not be verified/);
   assert.match(route, /catalogView\(id,null,null,viewEpoch,context\)/);
@@ -359,9 +362,9 @@ test("navigation controller invalidates stale route requests", () => {
 });
 
 test("Manager shell is mounted before business and module context requests resolve", () => {
-  const start = app.indexOf("async function managerView(id,view=");
-  const end = app.indexOf("function managerIcon", start);
-  const route = app.slice(start, end);
+  const start = managerRuntime.indexOf("async function managerView(id,view=");
+  const end = managerRuntime.indexOf("return { bindManagerFrame", start);
+  const route = managerRuntime.slice(start, end);
   const shellMount = route.indexOf('app.innerHTML=managerFrameContent');
   const contextRequest = route.indexOf("loadManagerWorkspace");
   assert.ok(shellMount >= 0 && contextRequest > shellMount);
@@ -369,9 +372,9 @@ test("Manager shell is mounted before business and module context requests resol
 });
 
 test("Manager navigation renders into the existing content region, not the app root", () => {
-  const start = app.indexOf("function navigateManager(id,view)");
-  const end = app.indexOf("async function managerView(id,view=");
-  const route = app.slice(start, end);
+  const start = managerRuntime.indexOf("function navigateManager(id,view)");
+  const end = managerRuntime.indexOf("async function managerView(id,view=");
+  const route = managerRuntime.slice(start, end);
   assert.match(route, /document.querySelector\("\.manager-content"\)/);
   assert.doesNotMatch(route, /app\.innerHTML/);
   assert.match(route, /return managerView\(id,view\)/);
@@ -380,7 +383,7 @@ test("Manager navigation renders into the existing content region, not the app r
 test("Manager has desktop and mobile sign-out controls", () => {
   assert.match(managerShell, /id="managerSignout"/);
   assert.match(managerShell, /id="managerTopSignout"/);
-  assert.match(app, /supabase\.auth\.signOut\(\)/);
+  assert.match(managerRuntime, /supabase\.auth\.signOut\(\)/);
 });
 
 test("portal routing maps each authenticated role to its own portal", () => {
@@ -392,7 +395,7 @@ test("portal routing maps each authenticated role to its own portal", () => {
 });
 
 test("all authenticated portals use extracted service boundaries", () => {
-  assert.match(app, /loadManagerWorkspace\(supabase/);
+  assert.match(managerRuntime, /loadManagerWorkspace\(supabase/);
   assert.match(app, /renderStaffWorkspace\(\{app,supabase,state/);
   assert.match(app, /loadSuperAdminDashboardData\(supabase\)/);
   assert.match(app, /renderSuperAdminOverview\(\{businesses:state\.businesses/);
