@@ -6,6 +6,7 @@ import { loadManagerWorkspace } from "./domains/workspaces/manager-workspace.js"
 import { loadStaffDeskData } from "./domains/staff/staff-desk-repository.js";
 import { loadSuperAdminDashboardData } from "./features/super-admin/dashboard-repository.js";
 import { bootCustomerMenu } from "./features/customer/public-menu.js";
+import { renderStaffWorkspace } from "./features/staff/staff-workspace.js";
 import { createBusinessId } from "./manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
 import { managerWelcomeName } from "./manager/welcome-name.mjs";
@@ -471,7 +472,7 @@ async function workspaceForBusiness(id,knownMembership=null){
     cacheManagerContext(id,b,mq.data,mmq.data||[]);
     return managerView(id,savedManagerView(id));
   }
-  if(portal==="order_taker"||portal==="bill_counter")return staffWorkspace(id,b,portal,mq.data);
+  if(portal==="order_taker"||portal==="bill_counter")return renderStaffWorkspace({app,supabase,state,businessId:id,business:b,role:portal,membership:mq.data,esc,shell,empty,showAppToast,managerBill,watchBusinessOrders,showError:error});
   const managerName=role==="manager"?managerWelcomeName(mq.data,state.user):"";
   const active=new Set((mmq.data||[]).map(x=>x.module_id));
   const mods=state.modules.filter(x=>active.has(x.id));
@@ -492,29 +493,6 @@ async function workspaceForBusiness(id,knownMembership=null){
   document.querySelector("#workspaceBack").onclick=()=>isAdmin()?businessDetail(id):render("businesses");
   document.querySelectorAll("[data-open-catalog]").forEach(x=>x.onclick=()=>catalogView(x.dataset.openCatalog));
   if(role==="manager") loadStaffMembers(id);
-}
-
-async function staffWorkspace(businessId,business,role,membership,highlightOrderId=null){
-  app.dataset.staffBusinessId=businessId;app.dataset.staffWorkspaceActive="true";
-  const isOrderTaker=role==="order_taker",title=isOrderTaker?"Order Taker desk":"Bill Counter",name=membership?.display_name||state.user?.user_metadata?.display_name||"Team member";
-  let deskData;
-  try{deskData=await loadStaffDeskData(supabase,businessId)}catch(error){return error(error.message)}
-  const {orders,items,tables:tableRows}=deskData;
-  const byOrder=new Map();items.forEach(x=>byOrder.set(x.order_id,[...(byOrder.get(x.order_id)||[]),x]));
-  const tables=new Map(tableRows.map(x=>[x.id,x.label||"Table "+x.table_number]));
-  const queue=isOrderTaker?orders.filter(x=>["new","accepted","processing"].includes(x.status)):orders.filter(x=>x.payment_status!=="paid"&&["accepted","processing","delivered"].includes(x.status));
-  const emptyTitle=isOrderTaker?"No active orders":"No bills waiting";
-  const rows=queue.map(x=>'<article class="item-card order-data-row"><div><strong>'+esc(x.order_code||x.id.slice(0,8).toUpperCase())+' · '+esc(x.customer_name_snapshot||"Guest")+'</strong><span>'+esc(tables.get(x.table_id)||"Staff order")+' · '+esc(x.status)+(isOrderTaker?"":" · Payment "+(x.payment_status||"open"))+'</span><p>'+esc((byOrder.get(x.id)||[]).map(it=>it.item_name+" × "+it.quantity).join(" · ")||"No item details")+'</p></div><div class="item-meta"><strong>₹'+esc(Number(x.total||0).toFixed(2))+'</strong><div class="mini-actions">'+(isOrderTaker?(x.status==="new"?'<button class="mini-btn" data-staff-order="accepted" data-id="'+esc(x.id)+'">Accept</button><button class="mini-btn" data-staff-order="cancelled" data-id="'+esc(x.id)+'">Reject</button>':x.status==="accepted"||x.status==="processing"?'<button class="mini-btn" data-staff-order="delivered" data-id="'+esc(x.id)+'">Mark delivered</button>':""):'<button class="mini-btn" data-staff-bill="'+esc(x.id)+'">Open receipt</button>'+(x.payment_status==="paid"?'<span class="pill active">Paid</span>':'<button class="mini-btn" data-staff-paid="'+esc(x.id)+'">Mark paid</button>'))+'</div></div></article>').join("");
-  const highlighted=orders.find(x=>x.id===highlightOrderId);
-  const newOrderNotice=highlighted?'<div class="staff-live-alert" role="status"><strong>New order received</strong><span>'+esc(highlighted.customer_name_snapshot||"Guest")+' · '+esc(tables.get(highlighted.table_id)||"Staff order")+' · '+esc(highlighted.order_code||highlighted.id.slice(0,8).toUpperCase())+'</span><button type="button" aria-label="Dismiss new order notice">×</button></div>':"";
-  shell(title,'<div class="staff-workspace">'+newOrderNotice+'<div class="hero-row"><div><span class="eyebrow">'+esc(business.name)+' · '+esc(role.replace("_"," ").toUpperCase())+'</span><h2>Welcome, '+esc(name)+'</h2><p class="muted">'+(isOrderTaker?"Review incoming orders, accept or reject them, then mark them delivered.":"Review the order, print a short receipt, then record payment when it is collected.")+'</p></div><span class="pill active">'+queue.length+' '+(isOrderTaker?"active orders":"open bills")+'</span></div><div class="panel"><div class="panel-head"><div><h2>'+(isOrderTaker?"Active orders":"Bills to settle")+'</h2><p>'+(isOrderTaker?"New orders appear here for this restaurant.":"Only accepted or delivered orders with open payment are listed.")+'</p></div></div><div class="item-list">'+(rows||empty(emptyTitle,isOrderTaker?"New customer orders will appear here.":"There are no unpaid accepted orders right now."))+'</div></div></div>');
-  document.querySelector(".app-shell")?.classList.add("staff-app");
-  const dismissNotice=document.querySelector(".staff-live-alert button");if(dismissNotice)dismissNotice.onclick=()=>dismissNotice.closest(".staff-live-alert").remove();
-  if(highlighted)setTimeout(()=>document.querySelector(".staff-live-alert")?.remove(),8000);
-  document.querySelectorAll("[data-staff-order]").forEach(btn=>btn.onclick=async()=>{const original=btn.textContent;btn.disabled=true;btn.textContent=btn.dataset.staffOrder==="accepted"?"Accepting…":btn.dataset.staffOrder==="cancelled"?"Rejecting…":"Updating…";const r=await supabase.functions.invoke("staff-operations",{body:{action:"update_status",business_id:businessId,order_id:btn.dataset.id,status:btn.dataset.staffOrder}});if(r.error||r.data?.error){btn.disabled=false;btn.textContent=original;return showAppToast(r.data?.error||r.error?.message||"Could not update this order.")}showAppToast(btn.dataset.staffOrder==="accepted"?"Order accepted.":btn.dataset.staffOrder==="cancelled"?"Order rejected.":"Order marked delivered.");staffWorkspace(businessId,business,role,membership)});
-  document.querySelectorAll("[data-staff-bill]").forEach(btn=>btn.onclick=()=>managerBill(businessId,btn.dataset.staffBill));
-  document.querySelectorAll("[data-staff-paid]").forEach(btn=>btn.onclick=async()=>{btn.disabled=true;btn.textContent="Saving payment…";const r=await supabase.functions.invoke("staff-operations",{body:{action:"mark_paid",business_id:businessId,order_id:btn.dataset.staffPaid}});if(r.error||r.data?.error){btn.disabled=false;btn.textContent="Mark paid";return showAppToast(r.data?.error||r.error?.message||"Could not update payment status.")}showAppToast("Payment recorded.");staffWorkspace(businessId,business,role,membership)});
-  watchBusinessOrders(businessId,change=>{if(app.dataset.staffBusinessId!==businessId||app.dataset.staffWorkspaceActive!=="true"||!document.querySelector(".staff-workspace"))return;staffWorkspace(businessId,business,role,membership,change.eventType==="INSERT"?change.new?.id:null)});
 }
 
 
