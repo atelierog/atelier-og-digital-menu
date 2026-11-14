@@ -70,6 +70,8 @@ The public order command recalculates item prices, discounts and tax on the serv
 
 ## Current reliability findings
 
+Important correction to the earlier repository-only audit: the recovered production `src/app.js` already has a `bootPromise` guard, an auth-state listener that does not re-run `boot()` on token refresh, a 30-second Manager context cache keyed by user and business, and a navigation epoch guard. The earlier claims of duplicate boot and unconditional Manager refetch on every navigation described the older GitHub implementation, not the deployed production source. Those were not changed unnecessarily.
+
 1. The production Vercel source was not represented in the GitHub repository at the paths used by the deployment. The exact deployed frontend and its imported helper modules have now been recovered under `src/` on this branch.
 2. The live Supabase project has seven active Edge Functions; the previous repository source only tracked three. All seven active function sources have now been copied into `supabase/functions/` on this branch.
 3. The live database reports 23 applied migrations: 21 historical versions plus two new recovery migrations. The repository had only two differently named/timestamped historical SQL files, so the original 21 migration scripts remain unrecovered. See `supabase/REMOTE_MIGRATION_HISTORY.md`.
