@@ -10,9 +10,9 @@ Branch: release/digital-vision-unified
 - Manager sign-out is available in the sidebar and top bar. It stops the active order watcher and clears the local tenant context before signing out.
 - Tenant context cache and navigation request control are extracted into src/core/.
 - Manager workspace data access is extracted into src/domains/workspaces/manager-workspace.js.
-- Order Taker and Bill Counter share src/domains/staff/staff-desk-repository.js.
+- Order Taker and Bill Counter screens now live in src/features/staff/staff-workspace.js and share src/domains/staff/staff-desk-repository.js.
 - Super Admin dashboard data access is extracted into src/features/super-admin/dashboard-repository.js.
-- Customer/public menu API requests are extracted into src/domains/customer/public-menu-api.js.
+- Customer/public menu screen lives in src/features/customer/public-menu.js and calls src/domains/customer/public-menu-api.js.
 - Role-to-portal selection is centralized in src/core/portal-routing.js.
 - Playwright/Chromium browser tests cover Manager shell timing, route persistence, Manager sign-out, Super Admin, staff portals and public menu.
 
