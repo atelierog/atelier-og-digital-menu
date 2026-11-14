@@ -351,6 +351,7 @@ async function managerView(id,view="overview",knownMembership=null){
     if(view==="automation")bindManagerAutomation(id);
     if(managerNavigation.isCurrent(viewEpoch)&&view==="ordering")bindManagerFrame(id);
   }catch(error){
+    console.error("[Digital Vision] Manager section failed",view,id,error);
     if(!managerNavigation.isCurrent(viewEpoch))return;
     const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error);
     if(error?.managerTimedOut)managerNavigation.invalidate();
