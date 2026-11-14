@@ -247,7 +247,7 @@ function updateManagerShell(id,view,business,enabledCodes,name,role){
   if(businessBlock)businessBlock.innerHTML='<small>YOUR BUSINESS</small><strong>'+esc(business.name)+'</strong><span>'+esc(typeLabel(business.business_type))+' · '+esc(business.slug)+'</span>';
   const small=document.querySelector(".manager-top small");if(small)small.textContent=business.name+" / MANAGER";
   const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-  const shell=managerFrameContent(business,view,"",enabledCodes,name,role);
+  const shell=managerFrameContent({b:business,view,content:"",enabledCodes,name,role,managerNav,managerIcon,canAccessManagerModule,esc,typeLabel});
   const parsed=document.createElement("div");parsed.innerHTML=shell;
   const sideNav=document.querySelector(".manager-sidebar nav"),nextNav=parsed.querySelector(".manager-sidebar nav");
   if(sideNav&&nextNav)sideNav.replaceWith(nextNav);
