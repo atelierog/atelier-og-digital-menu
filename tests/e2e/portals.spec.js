@@ -74,7 +74,9 @@ test("Manager shell mounts before slow business context returns", async ({ page 
   let releaseBusiness;
   const businessGate = new Promise((resolve) => { releaseBusiness = resolve; });
   await installSupabaseMocks(page, "manager", { businessGate });
+  const businessRequest = page.waitForRequest(request => request.url().includes("/rest/v1/businesses"));
   await page.goto("/?login=manager");
+  await businessRequest;
   await expect(page.locator(".manager-shell")).toBeVisible();
   await expect(page.locator("#managerSignout")).toBeVisible();
   releaseBusiness();
@@ -167,7 +169,9 @@ test("Manager sign-out remains reachable on a mobile viewport", async ({ page })
 
 test("A Manager context failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
   await installSupabaseMocks(page, "manager", { failBusiness: true });
+  const failedBusinessResponse = page.waitForResponse(response => response.url().includes("/rest/v1/businesses") && response.status() === 503);
   await page.goto("/?login=manager");
+  await failedBusinessResponse;
   await expect(page.locator(".manager-shell")).toBeVisible();
   await expect(page.locator(".manager-content")).toContainText("Temporary business lookup failure");
   await expect(page.locator("#managerTopSignout")).toBeVisible();
