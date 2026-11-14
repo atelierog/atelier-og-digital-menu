@@ -158,3 +158,11 @@ test("A slow older section cannot overwrite a newer Manager route", async ({ pag
   await expect(page.locator(".manager-pagehead")).toContainText("Restaurant tables");
   await expect(page.locator(".manager-top h1")).toHaveText("Tables & QR");
 });
+
+test("Manager sign-out remains reachable on a mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installSupabaseMocks(page);
+  await page.goto("/?login=manager");
+  await expect(page.locator("#managerTopSignout")).toBeVisible();
+  await expect(page.locator(".manager-mobile-nav")).toBeVisible();
+});
