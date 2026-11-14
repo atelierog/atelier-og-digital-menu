@@ -1,4 +1,6 @@
 import { renderLogin, renderFirstLoginPassword } from "./auth/login.js";
+import { createTenantContextStore } from "./core/tenant-context.js";
+import { createNavigationController } from "./core/navigation.js";
 import { createBusinessId } from "./manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
 import { managerWelcomeName } from "./manager/welcome-name.mjs";
@@ -15,7 +17,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, managerLoginMode ? { a
 const app = document.querySelector("#app");
 const state = { user:null, businesses:[], modules:[] };
 let activeOrderWatch = null,deferredInstallPrompt=null;
-let managerNavigationEpoch=0,managerNavigationRequest=0,managerContextCache=null,bootPromise=null;
+const managerNavigation=createNavigationController();
+const managerContexts=createTenantContextStore(30000);
+let bootPromise=null;
 let workspaceBooted=false,workspaceBootTimer=null;
 window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();deferredInstallPrompt=event;window.deferredInstallPrompt=event});
 function stopOrderWatch(){if(activeOrderWatch){supabase.removeChannel(activeOrderWatch.channel);activeOrderWatch=null}}
@@ -215,11 +219,10 @@ function loadQrCodeLibrary(){
   return qrCodeLibraryPromise;
 }
 function cacheManagerContext(businessId,business,membership,enabledRows){
-  managerContextCache={businessId,userId:state.user?.id,loadedAt:Date.now(),business,membership,enabledRows:enabledRows||[]};
+  managerContexts.set({businessId,userId:state.user?.id,business,membership,enabledRows:enabledRows||[]});
 }
 function currentManagerContext(businessId){
-  const cache=managerContextCache;
-  return cache&&cache.businessId===businessId&&cache.userId===state.user?.id&&Date.now()-cache.loadedAt<MANAGER_CONTEXT_TTL?cache:null;
+  return managerContexts.get(businessId,state.user?.id);
 }
 function savedManagerView(businessId){
   try{const view=sessionStorage.getItem("dv-manager-view:"+state.user?.id+":"+businessId);return managerNav.some(([key])=>key===view)?view:"overview"}catch{return "overview"}
@@ -244,7 +247,7 @@ function managerInlineError(label,error){
 }
 function bindManagerFrame(id){
   document.querySelectorAll("[data-manager-view]").forEach(el=>el.onclick=()=>navigateManager(id,el.dataset.managerView));
-  const signOut=async()=>{const buttons=[document.querySelector("#managerSignout"),document.querySelector("#managerTopSignout")].filter(Boolean);buttons.forEach(b=>{b.disabled=true;b.textContent="Signing out…"});stopOrderWatch();managerContextCache=null;try{const result=await supabase.auth.signOut();if(result.error)throw result.error;sessionStorage.removeItem("dv-manager-view:"+state.user?.id+":"+id);state.user=null;login()}catch(error){buttons.forEach(b=>{b.disabled=false;b.textContent="Sign out"});showAppToast("Could not sign out: "+error.message)}};
+  const signOut=async()=>{const buttons=[document.querySelector("#managerSignout"),document.querySelector("#managerTopSignout")].filter(Boolean);buttons.forEach(b=>{b.disabled=true;b.textContent="Signing out…"});stopOrderWatch();managerContexts.clear();try{const result=await supabase.auth.signOut();if(result.error)throw result.error;sessionStorage.removeItem("dv-manager-view:"+state.user?.id+":"+id);state.user=null;login()}catch(error){buttons.forEach(b=>{b.disabled=false;b.textContent="Sign out"});showAppToast("Could not sign out: "+error.message)}};
   ["#managerSignout","#managerTopSignout"].forEach(selector=>{const button=document.querySelector(selector);if(button)button.onclick=signOut});
 }
 function updateManagerShell(id,view,business,enabledCodes,name,role){
@@ -272,7 +275,7 @@ function navigateManager(id,view){
   return managerView(id,view);
 }
 async function managerView(id,view="overview"){
-  const viewEpoch=++managerNavigationEpoch;
+  const viewEpoch=managerNavigation.begin();
   app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
   if(view!=="ordering")stopOrderWatch();
   let context=currentManagerContext(id);
@@ -292,11 +295,11 @@ async function managerView(id,view="overview"){
         supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),
         supabase.from("business_modules").select("module_id,enabled").eq("business_id",id).eq("enabled",true)
       ]);
-      if(viewEpoch!==managerNavigationEpoch)return;
+      if(!managerNavigation.isCurrent(viewEpoch))return;
       if(business.error)throw business.error;if(membership.error)throw membership.error;if(enabledRows.error)throw enabledRows.error;
       cacheManagerContext(id,business.data,membership.data,enabledRows.data||[]);context=currentManagerContext(id);
     }
-    if(viewEpoch!==managerNavigationEpoch)return;
+    if(!managerNavigation.isCurrent(viewEpoch))return;
     const business=context.business,membership=context.membership;
     const accessRole=isAdmin()?"admin":membership?.role;
     if(accessRole!=="admin"&&accessRole!=="manager")throw new Error("Manager access could not be verified. Ask the platform administrator to confirm your active membership.");
@@ -328,7 +331,7 @@ async function managerView(id,view="overview"){
     else if(view==="team")markup=managerTeamContent(id);
     else if(view==="more")markup=managerMoreContent(enabledCodes);
     else markup=managerModuleSetup(managerNav.find(x=>x[0]===view)?.[1]||"Section",view);
-    if(viewEpoch!==managerNavigationEpoch)return;
+    if(!managerNavigation.isCurrent(viewEpoch))return;
     const content=document.querySelector(".manager-content");if(!content)return;
     content.innerHTML=markup||'<div class="notice">This section has no content yet.</div>';
     if(view==="team")bindManagerStaff(id);
@@ -342,7 +345,7 @@ async function managerView(id,view="overview"){
     if(view==="automation")bindManagerAutomation(id);
     if(viewEpoch===managerNavigationEpoch&&view==="ordering")bindManagerFrame(id);
   }catch(error){
-    if(viewEpoch!==managerNavigationEpoch)return;
+    if(!managerNavigation.isCurrent(viewEpoch))return;
     const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error);
     document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
   }
@@ -565,13 +568,13 @@ async function loadStaffMembers(businessId){
   document.querySelectorAll("[data-password-toggle]").forEach(button=>{button.onclick=()=>{const input=document.getElementById(button.dataset.passwordToggle),show=input.type==="password";input.type=show?"text":"password";button.setAttribute("aria-label",show?"Hide password":"Show password");button.setAttribute("aria-pressed",String(show))}});
 }
 async function catalogView(id,editItemId=null,editCategoryId=null,expectedEpoch=null,managerContext=null){
-  const viewEpoch=expectedEpoch??++managerNavigationEpoch;
+  const viewEpoch=expectedEpoch??managerNavigation.begin();
   const [bq,cq,iq]=await Promise.all([
     managerContext?Promise.resolve({data:managerContext.business,error:null}):supabase.from("businesses").select("id,name,business_type,slug").eq("id",id).single(),
     supabase.from("catalog_categories").select("*").eq("business_id",id).order("sort_order").order("name"),
     supabase.from("catalog_items").select("*").eq("business_id",id).order("created_at",{ascending:false})
   ]);
-  if(viewEpoch!==managerNavigationEpoch)return;
+  if(!managerNavigation.isCurrent(viewEpoch))return;
   if(bq.error)return error(bq.error.message);
   if(cq.error)return error(cq.error.message);
   if(iq.error)return error(iq.error.message);
@@ -678,7 +681,7 @@ supabase.auth.onAuthStateChange((event,s)=>{
   if(app.dataset.authFlow === "recovery" && event !== "SIGNED_OUT") return;
   // Sign-in handlers and the initial page load call boot() themselves. Refreshing
   // an access token must not rebuild the workspace or reset the Manager to Overview.
-  if(event==="SIGNED_OUT"){stopOrderWatch();managerContextCache=null;state.user=null;login()}
+  if(event==="SIGNED_OUT"){stopOrderWatch();managerContexts.clear();state.user=null;login()}
 });
 if(!customerMenuMode){app.innerHTML='<main class="auth-page" role="status"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><p class="muted">Loading your workspace…</p></div></main>';workspaceBootTimer=setTimeout(()=>{if(workspaceBooted)return;if(state.user)errorScreen("Your workspace is taking longer than expected. Check your connection and try again.");else login("We couldn’t verify your sign-in. Please sign in again.")},12000)}
 if(customerMenuMode)bootCustomerMenu();else boot().catch(()=>{workspaceBooted=true;clearTimeout(workspaceBootTimer);errorScreen("We couldn’t open your workspace. Check your connection and try again.")});
