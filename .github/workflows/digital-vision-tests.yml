@@ -2,10 +2,13 @@ name: Digital Vision regression tests
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - "release/**"
   push:
     branches:
       - "release/**"
+      - "architecture/**"
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ jobs:
         with:
           node-version: "24"
       - name: Install frontend dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
       - name: Install Chromium for browser tests
         run: npx playwright install --with-deps chromium
       - name: Build production frontend
