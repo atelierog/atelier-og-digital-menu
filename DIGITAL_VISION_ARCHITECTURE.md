@@ -119,3 +119,13 @@ The shared foundation must own session resolution, current business context, mod
 5. Validate migrations against a staging/transactional environment before applying them to production.
 6. Run the 100-case QA policy plus role-based browser workflows.
 7. Deploy a Vercel Preview, verify Super Admin and every business role, then request production promotion separately.
+
+## Automated validation
+
+Run the repository suite with:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+`tests/production-regression.test.mjs` adds a 100-case role/module/business-lifecycle matrix plus production-source regression checks. These are unit/static checks; they do not replace the required browser-based end-to-end scenarios in `QA_POLICY.md`.
