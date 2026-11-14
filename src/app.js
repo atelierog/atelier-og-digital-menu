@@ -251,7 +251,7 @@ function managerInlineError(label,error){
 }
 function bindManagerFrame(id){
   document.querySelectorAll("[data-manager-view]").forEach(el=>el.onclick=()=>navigateManager(id,el.dataset.managerView));
-  const signOut=async()=>{const buttons=[document.querySelector("#managerSignout"),document.querySelector("#managerTopSignout")].filter(Boolean);buttons.forEach(b=>{b.disabled=true;b.textContent="Signing out…"});stopOrderWatch();managerContexts.clear();try{const result=await supabase.auth.signOut();if(result.error)throw result.error;sessionStorage.removeItem("dv-manager-view:"+state.user?.id+":"+id);state.user=null;login()}catch(error){buttons.forEach(b=>{b.disabled=false;b.textContent="Sign out"});showAppToast("Could not sign out: "+error.message)}};
+  const signOut=async()=>{const buttons=[document.querySelector("#managerSignout"),document.querySelector("#managerTopSignout")].filter(Boolean);buttons.forEach(b=>{b.disabled=true;b.textContent="Signing out…"});stopOrderWatch();managerNavigation.invalidate();managerContexts.clear();try{const result=await supabase.auth.signOut();if(result.error)throw result.error;sessionStorage.removeItem("dv-manager-view:"+state.user?.id+":"+id);state.user=null;login()}catch(error){buttons.forEach(b=>{b.disabled=false;b.textContent="Sign out"});showAppToast("Could not sign out: "+error.message)}};
   ["#managerSignout","#managerTopSignout"].forEach(selector=>{const button=document.querySelector(selector);if(button)button.onclick=signOut});
 }
 function updateManagerShell(id,view,business,enabledCodes,name,role){
@@ -674,7 +674,7 @@ supabase.auth.onAuthStateChange((event,s)=>{
   if(app.dataset.authFlow === "recovery" && event !== "SIGNED_OUT") return;
   // Sign-in handlers and the initial page load call boot() themselves. Refreshing
   // an access token must not rebuild the workspace or reset the Manager to Overview.
-  if(event==="SIGNED_OUT"){stopOrderWatch();managerContexts.clear();state.user=null;login()}
+  if(event==="SIGNED_OUT"){stopOrderWatch();managerNavigation.invalidate();managerContexts.clear();state.user=null;login()}
 });
 if(!customerMenuMode){app.innerHTML='<main class="auth-page" role="status"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><p class="muted">Loading your workspace…</p></div></main>';workspaceBootTimer=setTimeout(()=>{if(workspaceBooted)return;if(state.user)errorScreen("Your workspace is taking longer than expected. Check your connection and try again.");else login("We couldn’t verify your sign-in. Please sign in again.")},12000)}
 if(customerMenuMode)bootCustomerMenu();else boot().catch(()=>{workspaceBooted=true;clearTimeout(workspaceBootTimer);errorScreen("We couldn’t open your workspace. Check your connection and try again.")});
