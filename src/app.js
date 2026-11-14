@@ -3,7 +3,6 @@ import { createTenantContextStore } from "./core/tenant-context.js";
 import { createNavigationController } from "./core/navigation.js";
 import { resolvePortal } from "./core/portal-routing.js";
 import { loadManagerWorkspace } from "./domains/workspaces/manager-workspace.js";
-import { loadStaffDeskData } from "./domains/staff/staff-desk-repository.js";
 import { loadSuperAdminDashboardData } from "./features/super-admin/dashboard-repository.js";
 import { bootCustomerMenu } from "./features/customer/public-menu.js";
 import { renderStaffWorkspace } from "./features/staff/staff-workspace.js";
