@@ -679,7 +679,15 @@ supabase.auth.onAuthStateChange((event,s)=>{
 if(!customerMenuMode){app.innerHTML='<main class="auth-page" role="status"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><p class="muted">Loading your workspace…</p></div></main>';workspaceBootTimer=setTimeout(()=>{if(workspaceBooted)return;if(state.user)errorScreen("Your workspace is taking longer than expected. Check your connection and try again.");else login("We couldn’t verify your sign-in. Please sign in again.")},12000)}
 if(customerMenuMode)bootCustomerMenu();else boot().catch(()=>{workspaceBooted=true;clearTimeout(workspaceBootTimer);errorScreen("We couldn’t open your workspace. Check your connection and try again.")});
 
-function errorScreen(message){app.innerHTML='<main class="auth-page"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><h1>Workspace unavailable</h1><p class="muted">'+esc(message)+'</p><button class="primary" id="retryWorkspace">Try again</button></div></main>';document.querySelector("#retryWorkspace").onclick=()=>{document.querySelector("#retryWorkspace").disabled=true;document.querySelector("#retryWorkspace").textContent="Connecting…";boot().catch(()=>errorScreen(message))}}
+function errorScreen(message){
+  if(document.querySelector(".manager-shell")){
+    const content=document.querySelector(".manager-content");
+    if(content){content.innerHTML=managerInlineError("Manager workspace",new Error(message));document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(app.dataset.managerBusinessId,app.dataset.managerView||"overview"),{once:true})}
+    return;
+  }
+  app.innerHTML='<main class="auth-page"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><h1>Workspace unavailable</h1><p class="muted">'+esc(message)+'</p><button class="primary" id="retryWorkspace">Try again</button></div></main>';
+  document.querySelector("#retryWorkspace").onclick=()=>{document.querySelector("#retryWorkspace").disabled=true;document.querySelector("#retryWorkspace").textContent="Connecting…";boot().catch(()=>errorScreen(message))};
+}
 
 async function bootCustomerMenu(){
   const params=new URLSearchParams(location.search),menu=params.get("menu"),table=params.get("table");
