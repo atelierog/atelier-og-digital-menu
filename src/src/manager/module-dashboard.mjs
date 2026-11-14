@@ -17,3 +17,8 @@ export function groupManagerModules(modules = []) {
 export function isManagerModuleAvailable(code) {
   return code === "catalog";
 }
+
+export function canAccessManagerModule(role, enabledCodes, moduleCode) {
+  if (role !== "manager" && role !== "admin") return false;
+  return !moduleCode || Boolean(enabledCodes?.has(moduleCode));
+}
