@@ -191,7 +191,7 @@ test("module entitlement writes are restricted to Super Admin", () => {
 });
 
 test("staff desk limits item reads to the displayed order IDs", () => {
-  assert.match(app, /loadStaffDeskData\(supabase,businessId\)/);
+  assert.match(app, /renderStaffWorkspace\(\{app,supabase,state/);
 });
 
 test("Manager overview limits item analytics to the selected date", () => {
@@ -391,7 +391,7 @@ test("portal routing maps each authenticated role to its own portal", () => {
 
 test("all authenticated portals use extracted service boundaries", () => {
   assert.match(app, /loadManagerWorkspace\(supabase/);
-  assert.match(app, /loadStaffDeskData\(supabase/);
+  assert.match(app, /renderStaffWorkspace\(\{app,supabase,state/);
   assert.match(app, /loadSuperAdminDashboardData\(supabase\)/);
   assert.match(app, /bootCustomerMenu\(\{app,esc,supabaseUrl:SUPABASE_URL/);
   assert.match(app, /resolvePortal\(/);
