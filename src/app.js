@@ -198,7 +198,6 @@ const managerNav=[
   ["customers","Customers","customers"], ["inquiries","Inquiries","inquiries"], ["automation","Automation","automation"]
 ];
 
-const MANAGER_CONTEXT_TTL=30000;
 const CUSTOMER_STATUS_POLL_INTERVAL_MS=10000;
 let qrCodeLibraryPromise=null;
 function loadQrCodeLibrary(){
@@ -343,7 +342,7 @@ async function managerView(id,view="overview"){
     if(view==="qr")bindManagerQr(id,business);
     if(view==="offers")bindManagerOffers(id);
     if(view==="automation")bindManagerAutomation(id);
-    if(viewEpoch===managerNavigationEpoch&&view==="ordering")bindManagerFrame(id);
+    if(managerNavigation.isCurrent(viewEpoch)&&view==="ordering")bindManagerFrame(id);
   }catch(error){
     if(!managerNavigation.isCurrent(viewEpoch))return;
     const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error);
