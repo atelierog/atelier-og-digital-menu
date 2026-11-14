@@ -139,3 +139,22 @@ for (const role of ["order_taker", "bill_counter"]) {
     await expect(page.locator(".topbar h1")).toContainText(role === "order_taker" ? "Order Taker" : "Bill Counter");
   });
 }
+
+test("A slow older section cannot overwrite a newer Manager route", async ({ page }) => {
+  await installSupabaseMocks(page);
+  let releaseOrders;
+  const ordersGate = new Promise((resolve) => { releaseOrders = resolve; });
+  await page.route("https://qwyquvufneolyesfiipf.supabase.co/rest/v1/orders**", async (route) => {
+    await ordersGate;
+    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+  });
+  await page.goto("/?login=manager");
+  await expect(page.locator(".manager-pagehead")).toContainText("Restaurant tables");
+  await page.getByRole("button", { name: /Orders/ }).first().click();
+  await expect(page.locator(".manager-top h1")).toHaveText("Orders");
+  await page.getByRole("button", { name: /Tables & QR/ }).first().click();
+  await expect(page.locator(".manager-pagehead")).toContainText("Restaurant tables");
+  releaseOrders();
+  await expect(page.locator(".manager-pagehead")).toContainText("Restaurant tables");
+  await expect(page.locator(".manager-top h1")).toHaveText("Tables & QR");
+});
