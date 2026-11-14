@@ -175,7 +175,7 @@ test("A Manager context failure stays inside the shell instead of resetting the 
   await page.goto("/?login=manager");
   await failedBusinessResponse;
   await expect(page.locator(".manager-shell")).toBeVisible();
-  await expect(page.locator(".manager-content")).toContainText("Temporary business lookup failure");
+  await expect(page.locator(".manager-content")).toContainText("Manager workspace took too long");
   await expect(page.locator("#managerTopSignout")).toBeVisible();
   await expect(page.locator("#unifiedLogin")).toHaveCount(0);
 });
