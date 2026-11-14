@@ -135,8 +135,10 @@ test("the production app has a single deduplicated boot promise", () => {
 });
 
 test("auth token refresh does not reset the active Manager route", () => {
-  assert.match(app, /Refreshing an access token must not rebuild the workspace/);
-  assert.match(app, /if\(event==="SIGNED_OUT"\)/);
+  const listener = app.match(/supabase\.auth\.onAuthStateChange\(\(event,s\)=>\{[\s\S]*?\n\s*\}\);/)?.[0] || "";
+  assert.ok(listener, "auth-state listener exists");
+  assert.match(listener, /if\(event==="SIGNED_OUT"\)/);
+  assert.doesNotMatch(listener, /boot\(/, "token refresh must not trigger a full workspace boot");
 });
 
 test("module catalogue remains grouped without hiding unknown future modules", () => {
