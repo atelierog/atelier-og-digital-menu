@@ -567,7 +567,7 @@ async function loadStaffMembers(businessId){
 async function catalogView(id,editItemId=null,editCategoryId=null,expectedEpoch=null,managerContext=null){
   const viewEpoch=expectedEpoch??++managerNavigationEpoch;
   const [bq,cq,iq]=await Promise.all([
-    supabase.from("businesses").select("id,name,business_type,slug").eq("id",id).single(),
+    managerContext?Promise.resolve({data:managerContext.business,error:null}):supabase.from("businesses").select("id,name,business_type,slug").eq("id",id).single(),
     supabase.from("catalog_categories").select("*").eq("business_id",id).order("sort_order").order("name"),
     supabase.from("catalog_items").select("*").eq("business_id",id).order("created_at",{ascending:false})
   ]);
@@ -586,12 +586,12 @@ async function catalogView(id,editItemId=null,editCategoryId=null,expectedEpoch=
   if(isAdmin())shell("Catalog",catalogMarkup);
   else{
     const context=managerContext||currentManagerContext(id);
-    if(!context||context.membership?.role!=="manager"){
-      const message='<div class="notice" role="alert"><strong>Manager access could not be verified.</strong><p>Your current workspace has been kept open. Please refresh this section or ask the platform administrator to confirm your access.</p></div>';
-      app.innerHTML=managerFrameContent(b,"catalog",message,new Set(),"Manager","manager");bindManagerFrame(id);return;
+    if(!context||!["manager","admin"].includes(context.membership?.role)){
+      return error("Manager access could not be verified. Your workspace remains open; ask the platform administrator to confirm your access.");
     }
-    const enabledIds=new Set((context.enabledRows||[]).filter(x=>x.enabled!==false).map(x=>x.module_id)),enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
-    app.innerHTML=managerFrameContent(b,"catalog",catalogMarkup.replace("← Workspace","← Overview"),enabledCodes,managerWelcomeName(context.membership,state.user));bindManagerFrame(id);
+    const target=document.querySelector(".manager-content");
+    if(!target)return;
+    target.innerHTML=catalogMarkup.replace("← Workspace","← Overview");
   }
 
   const setText=(idv,value)=>{const el=document.querySelector(idv);if(el)el.value=value||""};
