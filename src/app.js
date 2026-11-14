@@ -2,6 +2,9 @@ import { renderLogin, renderFirstLoginPassword } from "./auth/login.js";
 import { createTenantContextStore } from "./core/tenant-context.js";
 import { createNavigationController } from "./core/navigation.js";
 import { loadManagerWorkspace } from "./domains/workspaces/manager-workspace.js";
+import { loadStaffDeskData } from "./domains/staff/staff-desk-repository.js";
+import { loadSuperAdminDashboardData } from "./features/super-admin/dashboard-repository.js";
+import { requestPublicMenu } from "./domains/customer/public-menu-api.js";
 import { createBusinessId } from "./manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
 import { managerWelcomeName } from "./manager/welcome-name.mjs";
@@ -492,18 +495,11 @@ async function workspaceForBusiness(id,knownMembership=null){
 async function staffWorkspace(businessId,business,role,membership,highlightOrderId=null){
   app.dataset.staffBusinessId=businessId;app.dataset.staffWorkspaceActive="true";
   const isOrderTaker=role==="order_taker",title=isOrderTaker?"Order Taker desk":"Bill Counter",name=membership?.display_name||state.user?.user_metadata?.display_name||"Team member";
-  const ordersResult=await supabase.from("orders").select("id,order_code,status,total,created_at,customer_name_snapshot,table_id,payment_status").eq("business_id",businessId).order("created_at",{ascending:false}).limit(150);
-  if(ordersResult.error)return error(ordersResult.error.message);
-  const orders=ordersResult.data||[],orderIds=orders.map(order=>order.id);
-  const [itemsResult,tablesResult]=await Promise.all([
-    orderIds.length
-      ? supabase.from("order_items").select("order_id,item_name,quantity").eq("business_id",businessId).in("order_id",orderIds)
-      : Promise.resolve({data:[],error:null}),
-    supabase.from("restaurant_tables").select("id,label,table_number").eq("business_id",businessId)
-  ]);
-  if(itemsResult.error||tablesResult.error)return error((itemsResult.error||tablesResult.error).message);
-  const byOrder=new Map();(itemsResult.data||[]).forEach(x=>byOrder.set(x.order_id,[...(byOrder.get(x.order_id)||[]),x]));
-  const tables=new Map((tablesResult.data||[]).map(x=>[x.id,x.label||"Table "+x.table_number]));
+  let deskData;
+  try{deskData=await loadStaffDeskData(supabase,businessId)}catch(error){return error(error.message)}
+  const {orders,items,tables:tableRows}=deskData;
+  const byOrder=new Map();items.forEach(x=>byOrder.set(x.order_id,[...(byOrder.get(x.order_id)||[]),x]));
+  const tables=new Map(tableRows.map(x=>[x.id,x.label||"Table "+x.table_number]));
   const queue=isOrderTaker?orders.filter(x=>["new","accepted","processing"].includes(x.status)):orders.filter(x=>x.payment_status!=="paid"&&["accepted","processing","delivered"].includes(x.status));
   const emptyTitle=isOrderTaker?"No active orders":"No bills waiting";
   const rows=queue.map(x=>'<article class="item-card order-data-row"><div><strong>'+esc(x.order_code||x.id.slice(0,8).toUpperCase())+' · '+esc(x.customer_name_snapshot||"Guest")+'</strong><span>'+esc(tables.get(x.table_id)||"Staff order")+' · '+esc(x.status)+(isOrderTaker?"":" · Payment "+(x.payment_status||"open"))+'</span><p>'+esc((byOrder.get(x.id)||[]).map(it=>it.item_name+" × "+it.quantity).join(" · ")||"No item details")+'</p></div><div class="item-meta"><strong>₹'+esc(Number(x.total||0).toFixed(2))+'</strong><div class="mini-actions">'+(isOrderTaker?(x.status==="new"?'<button class="mini-btn" data-staff-order="accepted" data-id="'+esc(x.id)+'">Accept</button><button class="mini-btn" data-staff-order="cancelled" data-id="'+esc(x.id)+'">Reject</button>':x.status==="accepted"||x.status==="processing"?'<button class="mini-btn" data-staff-order="delivered" data-id="'+esc(x.id)+'">Mark delivered</button>':""):'<button class="mini-btn" data-staff-bill="'+esc(x.id)+'">Open receipt</button>'+(x.payment_status==="paid"?'<span class="pill active">Paid</span>':'<button class="mini-btn" data-staff-paid="'+esc(x.id)+'">Mark paid</button>'))+'</div></div></article>').join("");
@@ -652,8 +648,7 @@ async function load(){
   const u=await supabase.auth.getUser();state.user=u.data.user;if(!state.user)return login();
   if(state.user.app_metadata?.must_change_password){renderFirstLoginPassword({app,supabase,boot,esc});return}
   if(isAdmin()){
-    const [b,m,mc]=await Promise.all([supabase.from("businesses").select("*").order("created_at",{ascending:false}),supabase.from("modules").select("*").order("name"),supabase.from("business_members").select("id",{count:"exact",head:true})]);
-    if(b.error)return error(b.error.message);if(m.error)return error(m.error.message);state.businesses=b.data||[];state.modules=m.data||[];state.memberCount=mc.error?null:mc.count;
+    try{const dashboard=await loadSuperAdminDashboardData(supabase);state.businesses=dashboard.businesses;state.modules=dashboard.modules;state.memberCount=dashboard.memberCount}catch(error){return error(error.message)}
   }else{
     // Non-admin portals fetch only the data their own workspace requires.
     // Manager module metadata is loaded after its shell is mounted.
@@ -688,7 +683,7 @@ async function bootCustomerMenu(){
   const params=new URLSearchParams(location.search),menu=params.get("menu"),table=params.get("table");
   const endpoint=SUPABASE_URL+"/functions/v1/public-menu";
   app.innerHTML='<main class="customer-menu-page platinum-premium"><section class="customer-menu-card"><p class="eyebrow">DIGITAL VISION</p><h1>Loading menu…</h1></section></main>';
-  const request=async(url,options={})=>{const response=await fetch(url,{...options,headers:{apikey:SUPABASE_KEY,"Content-Type":"application/json",...(options.headers||{})}});const body=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(body.error||"The menu could not be loaded.");return body};
+  const request=(url,options={})=>requestPublicMenu(url,SUPABASE_KEY,"",options);
   try{
     const data=await request(endpoint+"?action=menu&menu="+encodeURIComponent(menu||"")+"&table="+encodeURIComponent(table||""));
     const basket=new Map(),popular=new Set(data.popular_item_ids||[]),popularCounts=data.popular_item_counts||{};let term="",selectedCategory="",cartOpen=false;
