@@ -1,9 +1,9 @@
-import { renderLogin, renderFirstLoginPassword } from "./src/auth/login.js";
-import { createBusinessId } from "./src/manager/business-id.mjs";
-import { canOpenBusinessWorkspace } from "./src/manager/business-access.mjs";
-import { managerWelcomeName } from "./src/manager/welcome-name.mjs";
-import { isStaffPassword } from "./src/auth/password-policy.mjs";
-import { groupManagerModules, isManagerModuleAvailable, canAccessManagerModule } from "./src/manager/module-dashboard.mjs";
+import { renderLogin, renderFirstLoginPassword } from "./auth/login.js";
+import { createBusinessId } from "./manager/business-id.mjs";
+import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
+import { managerWelcomeName } from "./manager/welcome-name.mjs";
+import { isStaffPassword } from "./auth/password-policy.mjs";
+import { groupManagerModules, isManagerModuleAvailable, canAccessManagerModule } from "./manager/module-dashboard.mjs";
 import { createClient } from "@supabase/supabase-js";
 import qrCodeScriptUrl from "./vendor/qrcode.min.js?url";
 
