@@ -3,7 +3,7 @@
 **Baseline date:** 14 November 2026  
 **Audited source branch:** `release/digital-vision-unified`  
 **Audited branch head:** `1593c41467d1d5e43723432c4521a3b537fd1a77`  
-**Last deployment inspected:** `4703960f08bb77fbd294d9dc0a8117470b05ba61`
+**Last release-branch deployment inspected:** `4703960f08bb77fbd294d9dc0a8117470b05ba61`
 
 ## 1. Verified current state
 
@@ -21,34 +21,46 @@ The October-only history seen in the first audit was caused by inspecting `main`
 ### Frontend
 
 - Vite SPA with root `index.html`, `package.json`, `vite.config.js` and `vercel.json`.
-- Canonical runtime entry is `src/app.js`; the previous root `app.js` was removed on the release branch.
+- Canonical runtime entry on the release branch is `src/app.js`; the previous root `app.js` was removed from that branch.
 - The app remains a large central coordinator (approximately 106 KB at the inspected release snapshot).
 - Some boundaries have been extracted: `src/core/`, `src/features/`, `src/domains/`, `src/manager/` and `src/auth/`.
 - The Manager shell, tenant context cache, navigation epoch, manager workspace loader and portal routing have extracted modules.
 - Several portal and feature workflows still live in the central app coordinator. This is a transitional modular monolith, not yet the final feature/domain separation.
 
-### Manager reliability
+### Manager reliability — confirmed production cause
 
-The current release source contains no explicit previous-route restore in `navigateManager`. It updates the active route and starts the section loader. Manager data errors are intended to remain in `.manager-content`.
+The production custom domain was fetched directly from Vercel during this audit.
 
-However, the implementation still has migration risks:
+- Production `index.html` serves `./app.js?v=20261113d`, root-level `./style.css` and `./platinum-theme.css`.
+- The release branch `index.html` instead serves `./src/app.js?v=20261114d`, `./src/style.css` and `./src/platinum-theme.css`.
+- The production deployment currently assigned to `digitalvision.atelierog.co.in` is `dpl_HmoiyUhpLe5GVsoT6xTTa2HqsSVV`. Its Vercel deployment metadata has no Git commit SHA or branch.
+- The production-served root `app.js` contains the exact rollback path seen in the user's screenshot: `navigateManager()` stores `previousView`, displays `Opening [section]…`, and on a rejected navigation restores `app.dataset.managerView=previousView`.
+- That same production source can call `workspace()` when Manager membership is not resolved and replaces the whole `#app` root for some entitlement failures.
+- The current release-branch `src/app.js` has no `previousView` restore in `navigateManager()`. It updates the selected section, uses the existing Manager shell, and catches feature errors inside `.manager-content`.
+
+This establishes a source/deployment mismatch, not merely a speculative browser-cache issue. The user was testing the production domain while the rollback removal existed on a separate release-branch build. Do not patch the old production bundle as a second source of truth. Continue from the canonical release branch, verify its preview, then promote the tested build only after acceptance.
+
+Remaining release risks in the current release source:
 - The Manager feature dispatcher and many screen/data functions remain in `src/app.js`.
 - Section navigation replaces the content region with a skeleton before data resolves. This is acceptable only if the skeleton is visible, bounded and followed by success/empty/error.
 - `managerAwait` uses a timeout race. A timeout does not cancel the underlying network request; request cancellation must be added where supported.
 - Current Playwright tests use deterministic mocked Supabase responses. They do not prove that live RLS, schema, order/payment transactions or QR printing work.
-- The exact “Opening Tables & QR…” wording from the user screenshot was not found in the inspected source snapshot. Verify the served bundle, deployment SHA and browser/PWA cache before claiming it is removed.
+- The production app's current bundle is not the same source layout as the release branch. A browser/PWA cache may still matter after cutover, but it is not the primary cause of the rollback currently observed.
 
 ### Hosting and backend
 
 - Vercel project: `digital-vision-atelier-og`, linked to this repository.
 - Production domain configured on that Vercel project: `digitalvision.atelierog.co.in`.
-- Vercel's most recent deployment inspected was READY from `release/digital-vision-unified`, commit `4703960f`; the branch had 11 newer commits.
+- Production deployment ID: `dpl_HmoiyUhpLe5GVsoT6xTTa2HqsSVV`, READY, but with no Git source metadata.
+- The latest inspected release-branch deployment was READY from `release/digital-vision-unified`, commit `4703960f`; the branch had 11 newer commits.
+- A fresh Vercel Preview was created for architecture commit `e10b2d7c`, which contains the current release source plus architecture documentation. Its Vercel deployment check succeeded.
 - Supabase project: `qwyquvufneolyesfiipf`, PostgreSQL 17, ACTIVE_HEALTHY.
 - Supabase has 23 migration records and seven active Edge Functions.
 - The live migration ledger contains historical migrations whose original SQL files are not all present in the Git repository. The two November 14 migrations are tracked; missing historical SQL must be recovered, not fabricated.
 - Supabase Security Advisor currently reports leaked-password protection disabled and an RLS-enabled `staff_password_reset_requests` table with no policies. The latter may be intentionally inaccessible to browser roles because Edge Functions own the access path; verify callers before changing it.
 - Supabase Performance Advisor reported unused indexes. Do not remove indexes solely from an early/low-traffic usage snapshot.
-- Cloudflare account contains an `atelier-og-digital-menu` Worker last modified September 4, with no routes in the Worker listing. Its live dependency status remains unproven.
+- Supabase Preview branching is disabled for this project; its PR check reports skipped. No database preview was created for the architecture PR.
+- Cloudflare account contains an `atelier-og-digital-menu` Worker last modified September 4, with no routes in the Worker listing. Its live dependency status remains unproven. The `digitalvision.atelierog.co.in` DNS record is a non-proxied CNAME to Vercel, so the public app domain is currently served by Vercel, not through the old Worker.
 
 ## 2. Migration principles
 
@@ -63,26 +75,31 @@ However, the implementation still has migration risks:
 
 ## 3. Phased migration
 
-### Phase 0 — Source and environment control (current)
+### Phase 0 — Source and environment control
 
 - [x] Identify the correct November release branch and current branch head.
 - [x] Confirm Vercel project and Git repository linkage.
 - [x] Confirm the Supabase project, migration count and Edge Function inventory.
 - [x] Identify the existing Cloudflare Worker and verify that no Worker route is configured in its listing.
-- [ ] Capture a fresh Vercel deployment from the exact current release head.
-- [ ] Record production deployment ID and prove which Git SHA/asset bundle is actually serving the custom domain.
+- [x] Inspect the production custom domain and identify its actual served entry point.
+- [x] Confirm the production bundle still contains the previous-route rollback and loading banner.
+- [x] Confirm the release-branch source has removed that rollback path.
+- [x] Create a Vercel Preview from the architecture branch containing the current release source; Vercel deployment check succeeded.
+- [ ] Record a Git SHA for production after the eventual controlled cutover; current production deployment has no Git metadata.
 - [ ] Recover local/uncommitted November work, if any, before changing application code.
 - [ ] Add a build/version diagnostic containing the exact Git SHA.
 
-### Phase 1 — Architecture foundation (this PR)
+### Phase 1 — Architecture foundation (PR #8)
 
 - [x] Define modular-monolith decision and system boundaries.
 - [x] Define target folder layout and ownership rules.
 - [x] Define tenant/auth/navigation invariants.
 - [x] Define migration phases and release gates.
 - [x] Define branch/commit/preview workflow.
-- [ ] Confirm CI runs on architecture branches and PRs targeting the release branch.
+- [x] Confirm CI runs on architecture branches and PRs targeting the release branch.
 - [ ] Add/commit a deterministic dependency lockfile before the next runtime code migration.
+- [ ] Confirm GitHub Actions succeeds on the final PR head before merge.
+- [ ] Supabase database preview remains unavailable because project branching is disabled; this docs-only PR makes no database change.
 
 ### Phase 2 — Stabilize runtime contracts
 
