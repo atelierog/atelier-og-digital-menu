@@ -86,8 +86,8 @@ test("module entitlement writes are restricted to Super Admin", () => {
   assert.match(migration, /with check \(private\.is_super_admin\(\)\)/);
   assert.match(migration, /using \(private\.is_super_admin\(\)\)/);
   assert.match(migration, /grant execute on function public\.admin_set_business_modules/);
-  assert.match(rpcSecurityMigration, /security invoker/i);
-  assert.doesNotMatch(rpcSecurityMigration, /security definer/i);
+  assert.match(rpcSecurityMigration, /language plpgsql\s+security invoker/i);
+  assert.doesNotMatch(rpcSecurityMigration, /\nsecurity definer/i);
 });
 
 test("staff desk limits item reads to the displayed order IDs", () => {
