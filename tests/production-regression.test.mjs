@@ -176,7 +176,7 @@ test("production login module parses as an ES module", () => {
 });
 
 test("Manager route and navigation share one role-aware entitlement guard", () => {
-  assert.match(app, /canAccessManagerModule\(accessRole,enabledCodes,module\)/);
+  assert.match(managerRuntime, /canAccessManagerModule\(accessRole,enabledCodes,module\)/);
   assert.match(managerShell, /canAccessManagerModule\(role,enabledCodes,module\)/);
 });
 
