@@ -90,7 +90,7 @@ test("Manager navigation changes sections without remounting the shell", async (
   await expect(page.locator(".manager-pagehead")).toContainText("Restaurant tables");
   await page.evaluate(() => { window.__managerShell = document.querySelector(".manager-shell"); });
   await page.getByRole("button", { name: /Orders/ }).first().click();
-  await expect(page.locator(".manager-top h1")).toHaveText("Orders");
+  await expect(page.locator(".manager-top h1")).toHaveText("Orders & bills");
   await expect(page.locator(".manager-shell")).toHaveCount(1);
   expect(await page.evaluate(() => window.__managerShell === document.querySelector(".manager-shell"))).toBe(true);
   await expect(page.locator(".manager-content")).not.toContainText("Loading Orders");
@@ -151,7 +151,7 @@ test("A slow older section cannot overwrite a newer Manager route", async ({ pag
   await page.goto("/?login=manager");
   await expect(page.locator(".manager-pagehead")).toContainText("Restaurant tables");
   await page.getByRole("button", { name: /Orders/ }).first().click();
-  await expect(page.locator(".manager-top h1")).toHaveText("Orders");
+  await expect(page.locator(".manager-top h1")).toHaveText("Orders & bills");
   await page.getByRole("button", { name: /Tables & QR/ }).first().click();
   await expect(page.locator(".manager-pagehead")).toContainText("Restaurant tables");
   releaseOrders();
