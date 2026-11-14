@@ -286,6 +286,7 @@ function navigateManager(id,view){
 }
 async function managerView(id,view="overview",knownMembership=null){
   const viewEpoch=managerNavigation.begin();
+  app.dataset.managerRequestEpoch=String(viewEpoch);
   app.dataset.managerBusinessId=id;app.dataset.managerView=view;saveManagerView(id,view);
   if(view!=="ordering")stopOrderWatch();
   let context=currentManagerContext(id);
@@ -352,7 +353,7 @@ async function managerView(id,view="overview",knownMembership=null){
     if(managerNavigation.isCurrent(viewEpoch)&&view==="ordering")bindManagerFrame(id);
   }catch(error){
     console.error("[Digital Vision] Manager section failed",view,id,error);
-    if(!managerNavigation.isCurrent(viewEpoch))return;
+    if(app.dataset.managerRequestEpoch!==String(viewEpoch))return;
     const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error);
     if(error?.managerTimedOut)managerNavigation.invalidate();
     document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
