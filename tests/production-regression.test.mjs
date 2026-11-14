@@ -393,6 +393,7 @@ test("all authenticated portals use extracted service boundaries", () => {
   assert.match(app, /loadManagerWorkspace\(supabase/);
   assert.match(app, /renderStaffWorkspace\(\{app,supabase,state/);
   assert.match(app, /loadSuperAdminDashboardData\(supabase\)/);
+  assert.match(app, /renderSuperAdminOverview\(\{businesses:state\.businesses/);
   assert.match(app, /bootCustomerMenu\(\{app,esc,supabaseUrl:SUPABASE_URL/);
   assert.match(app, /resolvePortal\(/);
 });
