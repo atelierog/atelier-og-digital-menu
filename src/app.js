@@ -4,7 +4,7 @@ import { canOpenBusinessWorkspace } from "./src/manager/business-access.mjs";
 import { managerWelcomeName } from "./src/manager/welcome-name.mjs";
 import { isStaffPassword } from "./src/auth/password-policy.mjs";
 import { groupManagerModules, isManagerModuleAvailable, canAccessManagerModule } from "./src/manager/module-dashboard.mjs";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://qwyquvufneolyesfiipf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_P-N6bQR54Ui4idQahqQwdg_U9l6xz39";
