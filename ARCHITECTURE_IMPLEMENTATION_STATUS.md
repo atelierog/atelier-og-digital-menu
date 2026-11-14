@@ -8,7 +8,8 @@ Branch: release/digital-vision-unified
 - A shared navigation epoch controller rejects stale route responses.
 - Section failures remain inside the active section with a Retry action; route changes do not restore the previous route. Manager context bootstrap is bounded to 4 seconds and individual section requests to 15 seconds, after which a retryable inline error replaces the skeleton.
 - Manager sign-out is available in the sidebar and top bar. It stops the active order watcher and clears the local tenant context before signing out.
-- Tenant context cache and navigation request control are extracted into src/core/.
+- Tenant context cache, navigation request control and role-to-portal routing are extracted into src/core/.
+- Manager shell rendering, section skeletons, request timeouts and inline error UI are extracted into src/features/manager/manager-shell.js.
 - Manager workspace data access is extracted into src/domains/workspaces/manager-workspace.js.
 - Order Taker and Bill Counter screens now live in src/features/staff/staff-workspace.js and share src/domains/staff/staff-desk-repository.js.
 - Super Admin overview screen and dashboard data access are extracted into src/features/super-admin/overview-screen.js and dashboard-repository.js.
