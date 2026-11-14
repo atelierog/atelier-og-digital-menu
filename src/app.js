@@ -239,16 +239,17 @@ function managerFrameContent(b,view,content,enabledCodes,name,role="manager"){
 function navigateManager(id,view){
   const previousView=app.dataset.managerView||"overview",label=managerNav.find(x=>x[0]===view)?.[1]||"page",request=String(++managerNavigationRequest);
   app.dataset.managerPendingView=view;app.dataset.managerPendingRequest=request;app.setAttribute("aria-busy","true");
-  const status=document.querySelector("#managerRouteStatus");if(status){status.textContent="Opening "+label+"…";status.classList.add("is-loading")}
-  const content=document.querySelector(".manager-content");if(content){content.innerHTML='<div class="notice manager-route-loading" role="status">Opening '+esc(label)+'…</div>'}
+  const status=document.querySelector("#managerRouteStatus");if(status){status.textContent="Loading "+label+"…";status.classList.add("is-loading")}
+  // Keep the current page visible while the next route loads. Never blank the
+  // workspace or replace it with a full-page loading panel during navigation.
   return managerView(id,view).then(()=>{
     if(app.dataset.managerPendingRequest!==request)return;
     delete app.dataset.managerPendingView;delete app.dataset.managerPendingRequest;app.removeAttribute("aria-busy");
+    const nextStatus=document.querySelector("#managerRouteStatus");if(nextStatus){nextStatus.textContent="● Connected";nextStatus.classList.remove("is-loading")}
   }).catch(error=>{
     if(app.dataset.managerPendingRequest!==request)return;
-    delete app.dataset.managerPendingView;delete app.dataset.managerPendingRequest;app.dataset.managerView=previousView;app.removeAttribute("aria-busy");
-    const routeStatus=document.querySelector("#managerRouteStatus");if(routeStatus){routeStatus.textContent="Could not open "+label+". Try again.";routeStatus.classList.remove("is-loading")}
-    const routeContent=document.querySelector(".manager-content");if(routeContent)routeContent.innerHTML='<div class="notice" role="alert">Could not open '+esc(label)+'. Check your connection and try again.</div>';
+    delete app.dataset.managerPendingView;delete app.dataset.managerPendingRequest;app.dataset.managerView=previousView;saveManagerView(id,previousView);app.removeAttribute("aria-busy");
+    const routeStatus=document.querySelector("#managerRouteStatus");if(routeStatus){routeStatus.textContent="● Connected";routeStatus.classList.remove("is-loading")}
     showAppToast("Could not open "+label+": "+(error?.message||"check your connection."));
   });
 }
@@ -274,7 +275,10 @@ async function managerView(id,view="overview"){
   if(viewEpoch!==managerNavigationEpoch)return;
   const business={data:context.business},membership={data:context.membership},enabledRows={data:context.enabledRows};
   const accessRole=isAdmin()?"admin":membership.data?.role;
-  if(accessRole!=="admin" && accessRole!=="manager")return workspace();
+  if(accessRole!=="admin" && accessRole!=="manager"){
+    const message='<div class="notice" role="alert"><strong>Manager access could not be verified.</strong><p>Your session is still open. Refresh this section or ask the platform administrator to confirm your active Manager membership.</p></div>';
+    app.innerHTML=managerFrameContent(business.data,view,message,new Set(),"Manager", "manager");bindManagerFrame(id);return;
+  }
   if(!canOpenBusinessWorkspace(isAdmin(),business.data.status))return error("This business is not active.");
   const enabledIds=new Set((enabledRows.data||[]).map(x=>x.module_id));
   const enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
@@ -288,7 +292,7 @@ async function managerView(id,view="overview"){
   }
   let content="";
   if(view==="overview")content=await managerOverview(id,business.data,name,enabledCodes);
-  else if(view==="catalog")return catalogView(id,null,null,viewEpoch);
+  else if(view==="catalog")return catalogView(id,null,null,viewEpoch,context);
   else if(view==="ordering")content=await managerOrders(id);
   else if(view==="digital_page")content=await managerDigitalPage(id,business.data);
   else if(view==="qr")content=await managerQr(id,business.data);
@@ -531,7 +535,7 @@ async function loadStaffMembers(businessId){
   const resetForm=document.querySelector("#staffResetForm");if(resetForm&&!resetForm.dataset.bound){resetForm.dataset.bound="true";resetForm.onsubmit=async e=>{e.preventDefault();const password=document.querySelector("#staffResetPassword").value,feedback=document.querySelector("#staffResetFeedback"),button=e.submitter;if(!isStaffPassword(password)){feedback.textContent="Use a password with at least 6 characters.";return}button.disabled=true;button.textContent="Saving…";const r=await supabase.functions.invoke("manager-staff-access",{body:{action:resetForm.dataset.action||"reset_password",business_id:businessId,user_id:resetForm.dataset.userId,password}});button.disabled=false;button.textContent="Save new password";if(r.error||r.data?.error){feedback.textContent=r.data?.error||r.error?.message||"Could not reset this password.";return}document.querySelector("#staffResetDialog").close();document.querySelector("#staffFeedback").textContent=resetForm.dataset.action==="convert_existing"?"Staff username created: "+r.data.staff_login_id+" · Share it and the new password directly with the staff member.":"Password reset. Share the new password directly with the staff member.";await loadStaffMembers(businessId)}};
   document.querySelectorAll("[data-password-toggle]").forEach(button=>{button.onclick=()=>{const input=document.getElementById(button.dataset.passwordToggle),show=input.type==="password";input.type=show?"text":"password";button.setAttribute("aria-label",show?"Hide password":"Show password");button.setAttribute("aria-pressed",String(show))}});
 }
-async function catalogView(id,editItemId=null,editCategoryId=null,expectedEpoch=null){
+async function catalogView(id,editItemId=null,editCategoryId=null,expectedEpoch=null,managerContext=null){
   const viewEpoch=expectedEpoch??++managerNavigationEpoch;
   const [bq,cq,iq]=await Promise.all([
     supabase.from("businesses").select("id,name,business_type,slug").eq("id",id).single(),
@@ -552,11 +556,13 @@ async function catalogView(id,editItemId=null,editCategoryId=null,expectedEpoch=
   const catalogMarkup='<div class="back" id="catalogBack">← Workspace</div><div class="hero-row"><div><span class="eyebrow">Catalog</span><h2>'+esc(b.name)+'</h2><p class="muted">'+(b.business_type==="restaurant"?"Food and menu items for this business.":"Products and services for this business.")+'</p></div><span class="pill active">'+esc(typeLabel(b.business_type))+'</span></div><div class="catalog-grid"><div class="panel"><div class="panel-head"><div><h2>'+((editCategory)?"Edit category":"Add category")+'</h2><p>Use categories to organize the catalog.</p></div></div><form id="categoryForm" class="form-grid"><label>Category name<input id="categoryName" required value="'+esc(editCategory?.name||"")+'" placeholder="Example: Main Course"></label><label>Sort order<input id="categorySort" type="number" value="'+esc(editCategory?.sort_order??0)+'" min="0"></label><div class="full"><button class="primary">'+((editCategory)?"Save category":"Add category")+'</button>'+((editCategory)?'<button type="button" class="secondary" id="cancelCategory">Cancel</button>':"")+'</div></form><div class="business-list compact-list">'+(categories.length?categories.map(c=>'<div class="business-row category-row"><div class="avatar">C</div><div class="row-main"><strong>'+esc(c.name)+'</strong><span>Order '+esc(c.sort_order)+'</span></div><span class="pill '+(c.active?"active":"archived")+'">'+(c.active?"Active":"Archived")+'</span><button class="mini-btn" data-edit-category="'+esc(c.id)+'">Edit</button></div>').join(""):empty("No categories","Create your first category."))+'</div></div><div class="panel"><div class="panel-head"><div><h2>'+((editItem)?"Edit catalog item":"Add catalog item")+'</h2><p>For restaurants, choose Food for dishes and drinks.</p></div></div><form id="itemForm" class="form-grid"><label>Name<input id="itemName" required value="'+esc(editItem?.name||"")+'" placeholder="Example: Gold Ring"></label><label>Type<select id="itemType"><option value="food" '+(editItem?.item_type==="food"||(!editItem&&b.business_type==="restaurant")?"selected":"")+'>Food</option><option value="product" '+(editItem?.item_type==="product"||(!editItem&&b.business_type!=="restaurant")?"selected":"")+'>Product</option><option value="service" '+(editItem?.item_type==="service"?"selected":"")+'>Service</option></select></label><label>Category<select id="itemCategory"><option value="">Uncategorized</option>'+activeCategories.map(c=>'<option value="'+esc(c.id)+'" '+(editItem?.category_id===c.id?"selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select></label><label>Price<input id="itemPrice" type="number" min="0" step="0.01" value="'+esc(editItem?.price??"")+'" placeholder="0"></label><label class="full">Image URL<input id="itemImage" type="url" value="'+esc(editItem?.image_url||"")+'" placeholder="https://..."></label><label class="full">Upload product photo<input id="itemImageFile" type="file" accept="image/jpeg,image/png,image/webp"><small class="compact-note">Optional · JPG, PNG or WebP · up to 8 MB.</small></label><label class="full">Description<textarea id="itemDescription" rows="3" placeholder="Short description"></textarea></label><label class="check-line"><input id="itemActive" type="checkbox" '+(editItem?.active!==false?"checked":"")+'><span>Active</span></label><div class="full"><button class="primary">'+((editItem)?"Save item":"Add item")+'</button>'+((editItem)?'<button type="button" class="secondary" id="cancelItem">Cancel</button>':"")+'</div></form></div></div><div class="panel"><div class="panel-head"><div><h2>Catalog items</h2><p>'+esc(String(items.length))+' item(s)</p></div></div><div class="item-list">'+(items.length?items.map(it=>'<article class="item-card"><div><strong>'+esc(it.name)+'</strong><span>'+esc(it.item_type)+' · '+esc(catName(it.category_id))+'</span><p>'+esc(it.description||"")+'</p></div><div class="item-meta"><strong>₹'+esc(it.price??"0")+'</strong><span class="pill '+(it.active?"active":"archived")+'">'+(it.active?"Active":"Archived")+'</span><div class="mini-actions"><button class="mini-btn" data-edit-item="'+esc(it.id)+'">Edit</button><button class="mini-btn" data-toggle-item="'+esc(it.id)+'">'+(it.active?"Archive":"Activate")+'</button></div></div></article>').join(""):empty("No catalog items","Add your first product or service above."))+'</div></div>';
   if(isAdmin())shell("Catalog",catalogMarkup);
   else{
-    const [membership,enabledRows]=await Promise.all([supabase.from("business_members").select("role,display_name,status").eq("business_id",id).eq("user_id",state.user.id).maybeSingle(),supabase.from("business_modules").select("module_id,enabled").eq("business_id",id).eq("enabled",true)]);
-    if(viewEpoch!==managerNavigationEpoch)return;
-    if(membership.error)return error(membership.error.message);if(enabledRows.error)return error(enabledRows.error.message);if(membership.data?.role!=="manager")return workspace();
-    const enabledIds=new Set((enabledRows.data||[]).map(x=>x.module_id)),enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
-    app.innerHTML=managerFrameContent(b,"catalog",catalogMarkup.replace("← Workspace","← Overview"),enabledCodes,managerWelcomeName(membership.data,state.user));bindManagerFrame(id);
+    const context=managerContext||currentManagerContext(id);
+    if(!context||context.membership?.role!=="manager"){
+      const message='<div class="notice" role="alert"><strong>Manager access could not be verified.</strong><p>Your current workspace has been kept open. Please refresh this section or ask the platform administrator to confirm your access.</p></div>';
+      app.innerHTML=managerFrameContent(b,"catalog",message,new Set(),"Manager","manager");bindManagerFrame(id);return;
+    }
+    const enabledIds=new Set((context.enabledRows||[]).filter(x=>x.enabled!==false).map(x=>x.module_id)),enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
+    app.innerHTML=managerFrameContent(b,"catalog",catalogMarkup.replace("← Workspace","← Overview"),enabledCodes,managerWelcomeName(context.membership,state.user));bindManagerFrame(id);
   }
 
   const setText=(idv,value)=>{const el=document.querySelector(idv);if(el)el.value=value||""};
@@ -607,8 +613,15 @@ function error(m){app.innerHTML='<main class="auth-page"><div class="auth-card">
 async function load(){
   const u=await supabase.auth.getUser();state.user=u.data.user;if(!state.user)return login();
   if(state.user.app_metadata?.must_change_password){renderFirstLoginPassword({app,supabase,boot,esc});return}
-  const [b,m,mc]=await Promise.all([supabase.from("businesses").select("*").order("created_at",{ascending:false}),supabase.from("modules").select("*").order("name"),supabase.from("business_members").select("id",{count:"exact",head:true})]);
-  if(b.error)return error(b.error.message);if(m.error)return error(m.error.message);state.businesses=b.data||[];state.modules=m.data||[];state.memberCount=mc.error?null:mc.count;
+  if(isAdmin()){
+    const [b,m,mc]=await Promise.all([supabase.from("businesses").select("*").order("created_at",{ascending:false}),supabase.from("modules").select("*").order("name"),supabase.from("business_members").select("id",{count:"exact",head:true})]);
+    if(b.error)return error(b.error.message);if(m.error)return error(m.error.message);state.businesses=b.data||[];state.modules=m.data||[];state.memberCount=mc.error?null:mc.count;
+  }else{
+    // Staff and Manager sessions do not need the platform-wide business
+    // directory or member count. Fetch only module metadata needed by Manager.
+    const m=await supabase.from("modules").select("*").order("name");
+    if(m.error)return error(m.error.message);state.modules=m.data||[];
+  }
 }
 function boot(){
   if(bootPromise)return bootPromise;
