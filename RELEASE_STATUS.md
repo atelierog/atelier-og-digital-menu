@@ -6,7 +6,7 @@ Updated: 2026-11-14
 
 - Branch: `release/digital-vision-unified`
 - Base: `codex/manager-onboarding-dashboard`
-- Production frontend source recovered under `src/` from the current Vercel production deployment.
+- Production frontend source recovered from the current Vercel deployment and normalized into the canonical repository root (`index.html`, `package.json`, `vercel.json`, with application code under `src/`).
 - Seven active Supabase Edge Functions recovered and compared byte-for-byte with the live function source.
 - Current production frontend was not replaced.
 
@@ -61,10 +61,10 @@ A preview was built from the recovered `src/` source before the Vite bundling ch
 
 The Vercel project settings were restored to their previous values after preview testing. For the eventual release, use:
 
-- Root directory: `src`
+- Root directory: repository root (default)
 - Install command: `npm install`
-- Build command: `npm run build`
-- Output directory: `dist`
+- Build command: `npm run build` (from `vercel.json`)
+- Output directory: `dist` (from `vercel.json`)
 - Node: `24.x`
 
 Production deployment and the production domain were left untouched.
