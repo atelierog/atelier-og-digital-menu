@@ -6,6 +6,7 @@ import { loadManagerWorkspace } from "./domains/workspaces/manager-workspace.js"
 import { loadSuperAdminDashboardData } from "./features/super-admin/dashboard-repository.js";
 import { bootCustomerMenu } from "./features/customer/public-menu.js";
 import { renderStaffWorkspace } from "./features/staff/staff-workspace.js";
+import { renderSuperAdminOverview } from "./features/super-admin/overview-screen.js";
 import { createBusinessId } from "./manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
 import { managerWelcomeName } from "./manager/welcome-name.mjs";
@@ -52,9 +53,7 @@ const metric=(a,b,c)=>'<div class="metric"><small>'+esc(a)+'</small><strong>'+es
 const empty=(a,b)=>'<div class="empty"><strong>'+esc(a)+'</strong><span>'+esc(b)+'</span></div>';
 const row=b=>'<button class="business-row" data-business="'+b.id+'"><div class="avatar">'+esc(b.name.slice(0,1).toUpperCase())+'</div><div class="row-main"><strong>'+esc(b.name)+'</strong><span>'+esc(typeLabel(b.business_type))+' · '+esc(b.slug)+'</span></div><span class="pill '+b.status+'">'+esc(b.status)+'</span><span class="arrow">→</span></button>';
 
-function overview(){
-  return '<div class="grid metrics">'+metric("Businesses",state.businesses.length,"")+metric("Active",state.businesses.filter(b=>b.status==="active").length,"")+metric("Members",state.memberCount??"—","")+metric("Modules",state.modules.length,"")+'</div><div class="panel"><div class="panel-head"><h2>Businesses</h2><button class="primary" id="newBusiness">+ Create business</button></div><div class="directory-tools"><input id="homeSearch" type="search" placeholder="Search businesses"><select id="homeStatus"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="archived">Archived</option></select></div><div class="business-list" id="homeBusinessList"></div></div>';
-}
+
 async function businesses(){
   if(!isAdmin())return workspace();
   shell("Businesses",'<div class="panel"><div class="panel-head"><h2>Businesses</h2><button class="primary" id="newBusiness">+ Create business</button></div><div class="directory-tools"><input id="businessSearch" type="search" placeholder="Search businesses"><select id="businessStatus"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="archived">Archived</option></select></div><div id="list" class="business-list"></div></div>');
@@ -643,7 +642,7 @@ function boot(){
   })().finally(()=>{bootPromise=null});
   return bootPromise;
 }
-function render(v){if(!state.user)return login();if(!isAdmin() && ["home","businesses","modules"].includes(v))return workspace();if(v==="home"){shell("Overview",overview());document.querySelector("#newBusiness").onclick=createBusiness;const search=document.querySelector("#homeSearch"),status=document.querySelector("#homeStatus"),list=document.querySelector("#homeBusinessList");const paint=()=>{const q=search.value.trim().toLowerCase(),rows=state.businesses.filter(b=>(b.name+" "+b.slug+" "+b.business_type).toLowerCase().includes(q)&&(status.value==="all"||b.status===status.value));list.innerHTML=rows.length?rows.map(row).join(""):empty("No matching businesses","Try another search or filter.");document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>businessDetail(x.dataset.business))};search.oninput=paint;status.onchange=paint;paint();return}if(v==="businesses")return businesses();if(v==="modules")return modules();return workspace()}
+function render(v){if(!state.user)return login();if(!isAdmin() && ["home","businesses","modules"].includes(v))return workspace();if(v==="home"){shell("Overview",renderSuperAdminOverview({businesses:state.businesses,memberCount:state.memberCount,modules:state.modules,metric}));document.querySelector("#newBusiness").onclick=createBusiness;const search=document.querySelector("#homeSearch"),status=document.querySelector("#homeStatus"),list=document.querySelector("#homeBusinessList");const paint=()=>{const q=search.value.trim().toLowerCase(),rows=state.businesses.filter(b=>(b.name+" "+b.slug+" "+b.business_type).toLowerCase().includes(q)&&(status.value==="all"||b.status===status.value));list.innerHTML=rows.length?rows.map(row).join(""):empty("No matching businesses","Try another search or filter.");document.querySelectorAll("[data-business]").forEach(x=>x.onclick=()=>businessDetail(x.dataset.business))};search.oninput=paint;status.onchange=paint;paint();return}if(v==="businesses")return businesses();if(v==="modules")return modules();return workspace()}
 supabase.auth.onAuthStateChange((event,s)=>{
   if(customerMenuMode)return;
   // OTP verification creates a temporary session. Keep the recovery UI in control
