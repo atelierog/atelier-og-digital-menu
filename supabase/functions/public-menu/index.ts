@@ -30,12 +30,23 @@ Deno.serve(async req => {
       if (!table?.active || table.business_id !== business.id) return reply({ error: "This table QR code is no longer active." }, 404);
       const [categories, items, offers] = await Promise.all([
         db.from("catalog_categories").select("id,name,sort_order").eq("business_id", business.id).eq("active", true).order("sort_order").order("name"),
-        db.from("catalog_items").select("id,name,description,price,image_url,category_id").eq("business_id", business.id).eq("active", true).eq("item_type", "product").order("name"),
+        db.from("catalog_items").select("id,name,description,price,image_url,category_id").eq("business_id", business.id).eq("active", true).in("item_type", ["product", "food"]).order("name"),
         db.from("restaurant_offers").select("name,description,discount_kind,discount_value,starts_at,ends_at").eq("business_id", business.id).eq("active", true)
       ]);
       for (const result of [categories, items, offers]) if (result.error) throw result.error;
+      const { data: soldItems, error: salesError } = await db.from("order_items")
+        .select("catalog_item_id,quantity,orders!inner(status)")
+        .eq("business_id", business.id)
+        .neq("orders.status", "cancelled");
+      const sales = new Map<string, number>();
+      if (!salesError) for (const row of soldItems || []) {
+        if (row.catalog_item_id) sales.set(row.catalog_item_id, (sales.get(row.catalog_item_id) || 0) + Number(row.quantity || 0));
+      }
+      const popularItemIds = [...sales.entries()].filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id);
+      const popularItemCounts = Object.fromEntries(sales.entries());
       const now = Date.now();
-      return reply({ business, settings, table: { id: table.id, label: table.label || `Table ${table.table_number}`, number: table.table_number }, categories: categories.data || [], items: items.data || [], offers: (offers.data || []).filter(x => (!x.starts_at || Date.parse(x.starts_at) <= now) && (!x.ends_at || Date.parse(x.ends_at) > now)) });
+      return reply({ business, settings, table: { id: table.id, label: table.label || `Table ${table.table_number}`, number: table.table_number }, categories: categories.data || [], items: items.data || [], popular_item_ids: popularItemIds, popular_item_counts: popularItemCounts, offers: (offers.data || []).filter(x => (!x.starts_at || Date.parse(x.starts_at) <= now) && (!x.ends_at || Date.parse(x.ends_at) > now)) });
     }
     if (req.method === "POST" && action === "order") {
       const body = await req.json();
@@ -59,7 +70,7 @@ Deno.serve(async req => {
         if (next > 20) return reply({ error: "A maximum of 20 of each item can be ordered." }, 400);
         quantities.set(id, next);
       }
-      const { data: catalog, error: catalogError } = await db.from("catalog_items").select("id,name,price").eq("business_id", business.id).eq("active", true).eq("item_type", "product").in("id", [...quantities.keys()]);
+      const { data: catalog, error: catalogError } = await db.from("catalog_items").select("id,name,price").eq("business_id", business.id).eq("active", true).in("item_type", ["product", "food"]).in("id", [...quantities.keys()]);
       if (catalogError) throw catalogError;
       if ((catalog || []).length !== quantities.size) return reply({ error: "A menu item changed. Refresh the menu and try again." }, 409);
       const items = (catalog || []).map(item => {
