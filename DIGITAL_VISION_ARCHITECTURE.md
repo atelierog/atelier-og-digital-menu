@@ -75,7 +75,7 @@ The public order command recalculates item prices, discounts and tax on the serv
 7. Manager overview previously scanned order items across all dates. The recovery branch now scopes that query to the selected activity date.
 8. Customer order-status tracking previously polled every second. The recovery branch changes the interval to ten seconds.
 9. QR rendering previously imported `qrcode` from `esm.sh` at runtime. The recovery branch now vendors the dependency locally at `src/vendor/qrcode.min.js`, includes its MIT license, and loads it before the application module.
-10. Existing automated tests read the older root-level app, not the recovered production `src/app.js`. Production-path regression coverage is now included. GitHub Actions reports 246/246 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
+10. Supabase Performance Advisor no longer reports the three missing foreign-key indexes after the migrations. It now reports 13 indexes as unused; none were deleted because a short observation window is not enough to prove they are unnecessary. Security Advisor's SECURITY DEFINER warning was removed by changing the RPC to SECURITY INVOKER. Remaining findings are leaked-password protection disabled and the reset-request table's intentionally policy-free RLS (service-role-only access).\n11. Existing automated tests read the older root-level app, not the recovered production `src/app.js`. Production-path regression coverage is now included. GitHub Actions reports 246/246 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
 
 ## Target architecture and staged evolution
 
