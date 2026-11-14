@@ -165,11 +165,11 @@ test("Manager sign-out remains reachable on a mobile viewport", async ({ page })
   await expect(page.locator(".manager-mobile-nav")).toBeVisible();
 });
 
-test("A Manager section failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
-  await installSupabaseMocks(page, "manager", { failTables: true });
+test("A Manager context failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
+  await installSupabaseMocks(page, "manager", { failBusiness: true });
   await page.goto("/?login=manager");
   await expect(page.locator(".manager-shell")).toBeVisible();
-  await expect(page.locator(".manager-content")).toContainText("Temporary table lookup failure");
+  await expect(page.locator(".manager-content")).toContainText("Temporary business lookup failure");
   await expect(page.locator("#managerTopSignout")).toBeVisible();
   await expect(page.locator("#unifiedLogin")).toHaveCount(0);
 });
