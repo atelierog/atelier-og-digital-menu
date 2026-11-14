@@ -9,10 +9,10 @@ import { managerWelcomeName } from "../src/manager/welcome-name.mjs";
 import { groupManagerModules, isManagerModuleAvailable } from "../src/manager/module-dashboard.mjs";
 
 const [appSource, authSource, memberFunction, themeSource, publicMenuFunction] = await Promise.all([
-  readFile(new URL("../app.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/auth/login.js", import.meta.url), "utf8"),
   readFile(new URL("../supabase/functions/admin-manage-member/index.ts", import.meta.url), "utf8"),
-  readFile(new URL("../platinum-theme.css", import.meta.url), "utf8"),
+  readFile(new URL("../src/platinum-theme.css", import.meta.url), "utf8"),
   readFile(new URL("../supabase/functions/public-menu/index.ts", import.meta.url), "utf8"),
 ]);
 
