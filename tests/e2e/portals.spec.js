@@ -166,3 +166,19 @@ test("Manager sign-out remains reachable on a mobile viewport", async ({ page })
   await expect(page.locator("#managerTopSignout")).toBeVisible();
   await expect(page.locator(".manager-mobile-nav")).toBeVisible();
 });
+
+test("A Manager context failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
+  await installSupabaseMocks(page);
+  await page.route("https://qwyquvufneolyesfiipf.supabase.co/rest/v1/businesses**", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ code: "UPSTREAM", message: "Temporary business lookup failure" }),
+    });
+  });
+  await page.goto("/?login=manager");
+  await expect(page.locator(".manager-shell")).toBeVisible();
+  await expect(page.locator(".manager-content [role=alert]")).toContainText("could not be loaded");
+  await expect(page.locator("#managerTopSignout")).toBeVisible();
+  await expect(page.locator("#unifiedLogin")).toHaveCount(0);
+});
