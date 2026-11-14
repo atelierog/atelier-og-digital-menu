@@ -13,6 +13,8 @@ This document describes the production application recovered from the current Ve
   - `src/app.js`
   - `src/style.css`
   - `src/platinum-theme.css`
+  - `src/package.json` and `src/vite.config.js` (Vite production build)
+  - `src/vendor/qrcode.min.js` (locally bundled QR generator)
   - `src/src/auth/*`
   - `src/src/manager/*`
 
@@ -27,6 +29,7 @@ The older root-level `app.js`, `index.html`, `style.css`, and helper modules are
 3. `load()` resolves the current user, platform role, businesses, module catalogue and member count.
 4. The auth-state listener handles sign-out and recovery flow; it does not re-run the whole boot on token refresh.
 5. Sign-in forms call `boot()` after successful authentication.
+6. `@supabase/supabase-js` is pinned in `src/package.json` and bundled into the production assets by Vite; the browser no longer needs to fetch the Supabase SDK from `esm.sh` at runtime.
 6. First-login password change is completed through the authenticated `complete-first-login` Edge Function.
 
 Platform role is read from Auth app metadata (`role=admin`). Business roles are stored in `business_members` and scoped by `business_id`.
@@ -74,7 +77,7 @@ The public order command recalculates item prices, discounts and tax on the serv
 6. The Order Taker/Bill Counter workspace previously fetched every historical `order_items` row on each refresh. The recovery branch now limits the query to the 150 displayed orders.
 7. Manager overview previously scanned order items across all dates. The recovery branch now scopes that query to the selected activity date.
 8. Customer order-status tracking previously polled every second. The recovery branch changes the interval to ten seconds.
-9. QR rendering previously imported `qrcode` from `esm.sh` at runtime. The recovery branch now vendors the dependency locally at `src/vendor/qrcode.min.js`, includes its MIT license, and loads it before the application module.
+9. QR rendering previously imported `qrcode` from `esm.sh` at runtime. The recovery branch now vendors the MIT-licensed library at `src/vendor/qrcode.min.js`, includes its license, and loads the local asset on demand through Vite's `?url` import.
 10. Supabase Performance Advisor no longer reports the three missing foreign-key indexes after the migrations. It now reports 13 indexes as unused; none were deleted because a short observation window is not enough to prove they are unnecessary. Security Advisor no longer reports an exposed SECURITY DEFINER RPC. Remaining findings are leaked-password protection disabled and the reset-request table's intentionally policy-free RLS (service-role-only access).
 11. Existing automated tests read the older root-level app, not the recovered production `src/app.js`. Production-path regression coverage is now included. GitHub Actions reports 246/246 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
 
