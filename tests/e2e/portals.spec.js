@@ -169,11 +169,11 @@ test("Manager sign-out remains reachable on a mobile viewport", async ({ page })
 
 test("A Manager context failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
   await installSupabaseMocks(page);
-  await page.route("https://qwyquvufneolyesfiipf.supabase.co/rest/v1/businesses**", async (route) => {
+  await page.route("https://qwyquvufneolyesfiipf.supabase.co/rest/v1/modules**", async (route) => {
     await route.fulfill({
       status: 503,
       contentType: "application/json",
-      body: JSON.stringify({ code: "UPSTREAM", message: "Temporary business lookup failure" }),
+      body: JSON.stringify({ code: "UPSTREAM", message: "Temporary module lookup failure" }),
     });
   });
   await page.goto("/?login=manager");
