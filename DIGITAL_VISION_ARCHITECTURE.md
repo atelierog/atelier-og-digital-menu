@@ -8,17 +8,18 @@ This document describes the production application recovered from the current Ve
 - Vercel project: `digital-vision-atelier-og`
 - Supabase project: `qwyquvufneolyesfiipf`
 - Recovery branch: `release/digital-vision-unified`
-- Production frontend recovered under `src/`:
-  - `src/index.html`
+- Canonical repository root:
+  - `index.html` — production entry point
+  - `package.json`, `vite.config.js`, `vercel.json` — pinned dependencies and Vercel build configuration
+- Production frontend source under `src/`:
   - `src/app.js`
-  - `src/style.css`
-  - `src/platinum-theme.css`
-  - `src/package.json` and `src/vite.config.js` (Vite production build)
+  - `src/auth/*`
+  - `src/manager/*`
+  - `src/style.css` and `src/platinum-theme.css`
+  - `src/manifest.webmanifest` and `src/icons/*`
   - `src/vendor/qrcode.min.js` (locally bundled QR generator)
-  - `src/src/auth/*`
-  - `src/src/manager/*`
 
-The older root-level `app.js`, `index.html`, `style.css`, and helper modules are the earlier GitHub implementation. They are not the files recovered from the latest production deployment. Keep the distinction explicit until Vercel is linked to one canonical repository path.
+The recovery branch now uses one canonical repository root. The old root-level app and styles have been removed from this branch; the original integration branch remains available as the legacy reference.
 
 ## Runtime architecture
 
@@ -79,7 +80,7 @@ The public order command recalculates item prices, discounts and tax on the serv
 8. Customer order-status tracking previously polled every second. The recovery branch changes the interval to ten seconds.
 9. QR rendering previously imported `qrcode` from `esm.sh` at runtime. The recovery branch now vendors the MIT-licensed library at `src/vendor/qrcode.min.js`, includes its license, and loads the local asset on demand through Vite's `?url` import.
 10. Supabase Performance Advisor no longer reports the three missing foreign-key indexes after the migrations. It now reports 13 indexes as unused; none were deleted because a short observation window is not enough to prove they are unnecessary. Security Advisor no longer reports an exposed SECURITY DEFINER RPC. Remaining findings are leaked-password protection disabled and the reset-request table's intentionally policy-free RLS (service-role-only access).
-11. Existing automated tests read the older root-level app, not the recovered production `src/app.js`. Production-path regression coverage is now included. GitHub Actions reports 247/247 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
+11. Automated tests now target the recovered production `src/app.js` and production helper modules. GitHub Actions reports 247/247 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
 
 ## Target architecture and staged evolution
 
