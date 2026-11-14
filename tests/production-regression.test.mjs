@@ -284,15 +284,24 @@ test("module catalogue remains grouped without hiding unknown future modules", (
 });
 
 
-test("Manager route loading preserves the current page and does not blank the workspace", () => {
+test("Manager navigation never rolls back or shows a blocking route-loading label", () => {
   const start = app.indexOf("function navigateManager(id,view)");
   const end = app.indexOf("function bindManagerFrame(id)", start);
   const route = app.slice(start, end);
-  assert.doesNotMatch(route, /content\.innerHTML=.*manager-route-loading/);
-  assert.match(route, /Keep the current page visible while the next route loads/);
-  assert.match(route, /saveManagerView\(id,previousView\)/);
+  assert.doesNotMatch(route, /previousView|saveManagerView\\(id,previousView\\)|Loading \+label/);
+  assert.match(route, /app\\.dataset\\.managerView=view/);
+  assert.match(route, /content\\.innerHTML=.*could not be opened/);
+  assert.match(route, /Retry/);
 });
 
+test("Manager feature errors stay inside the Manager shell", () => {
+  const start = app.indexOf("function error(m)");
+  const end = app.indexOf("async function load()", start);
+  const route = app.slice(start, end);
+  assert.match(route, /document\\.querySelector\\("\.manager-content"\\)/);
+  assert.match(route, /managerSectionRetry/);
+  assert.match(route, /app\\.innerHTML=.*auth-page/);
+});
 test("Manager route authorization failures never redirect to the generic workspace", () => {
   const start = app.indexOf("async function managerView(id,view=");
   const end = app.indexOf("function managerIcon", start);
