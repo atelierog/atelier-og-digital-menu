@@ -57,7 +57,7 @@ async function installSupabaseMocks(page, role = "manager", options = {}) {
       return url.searchParams.has("business_id") ? json(member) : json([member]);
     }
     if (path.endsWith("/rest/v1/business_modules")) return json(enabledRows);
-    if (path.endsWith("/rest/v1/restaurant_tables")) return json([]);
+    if (path.endsWith("/rest/v1/restaurant_tables")) return options.failTables ? json({ code: "UPSTREAM", message: "Temporary table lookup failure" }, 503) : json([]);
     if (path.endsWith("/rest/v1/orders")) return json([]);
     if (path.endsWith("/rest/v1/order_items")) return json([]);
     if (path.endsWith("/rest/v1/catalog_items")) return json([]);
@@ -165,11 +165,11 @@ test("Manager sign-out remains reachable on a mobile viewport", async ({ page })
   await expect(page.locator(".manager-mobile-nav")).toBeVisible();
 });
 
-test("A Manager context failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
-  await installSupabaseMocks(page, "manager", { failModules: true });
+test("A Manager section failure stays inside the shell instead of resetting the workspace", async ({ page }) => {
+  await installSupabaseMocks(page, "manager", { failTables: true });
   await page.goto("/?login=manager");
   await expect(page.locator(".manager-shell")).toBeVisible();
-  await expect(page.locator(".manager-content [role=alert]")).toContainText("could not be loaded");
+  await expect(page.locator(".manager-content")).toContainText("Temporary table lookup failure");
   await expect(page.locator("#managerTopSignout")).toBeVisible();
   await expect(page.locator("#unifiedLogin")).toHaveCount(0);
 });
