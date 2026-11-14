@@ -13,3 +13,4 @@ export function managerWelcomeName(membership, user) {
 function capitalizeName(value) {
   return value.replace(/(^|\s)\p{L}/gu, letter => letter.toUpperCase());
 }
+
