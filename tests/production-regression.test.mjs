@@ -16,6 +16,7 @@ const [
   staffOperations,
   publicMenu,
   migration,
+  rpcSecurityMigration,
   config,
   managerStaffAccess,
   passwordReset,
@@ -30,6 +31,7 @@ const [
   read("../supabase/functions/staff-operations/index.ts"),
   read("../supabase/functions/public-menu/index.ts"),
   read("../supabase/migrations/20261114082139_20261114100000_harden_module_entitlements_and_fk_indexes.sql"),
+  read("../supabase/migrations/20261114082546_make_module_entitlement_rpc_invoker.sql"),
   read("../supabase/config.toml"),
   read("../supabase/functions/manager-staff-access/index.ts"),
   read("../supabase/functions/staff-password-reset/index.ts"),
@@ -84,6 +86,8 @@ test("module entitlement writes are restricted to Super Admin", () => {
   assert.match(migration, /with check \(private\.is_super_admin\(\)\)/);
   assert.match(migration, /using \(private\.is_super_admin\(\)\)/);
   assert.match(migration, /grant execute on function public\.admin_set_business_modules/);
+  assert.match(rpcSecurityMigration, /security invoker/i);
+  assert.doesNotMatch(rpcSecurityMigration, /security definer/i);
 });
 
 test("staff desk limits item reads to the displayed order IDs", () => {
