@@ -298,7 +298,8 @@ test("Manager navigation never rolls back or shows a blocking route-loading labe
   assert.doesNotMatch(route, /previousView|saveManagerView\(id,previousView\)|Loading \+label/);
   assert.match(route, /app\.dataset\.managerView=view/);
   assert.match(route, /return managerView\(id,view\)/);
-  assert.match(route, /Retry/);
+  const managerHandler = managerRuntime.slice(end, managerRuntime.indexOf("return { bindManagerFrame", end));
+  assert.match(managerHandler, /Retry/);
 });
 
 test("Manager feature errors stay inside the Manager shell", () => {
