@@ -9,7 +9,7 @@ export function managerFrameContent({b,view,content,enabledCodes,name,role="mana
 export function managerSkeleton(){
   return '<div class="manager-section-skeleton" aria-hidden="true"><div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div><div class="skeleton-card large"></div></div>';
 }
-export function managerAwait(promise,label,timeoutMs=15000){
+export function managerAwait(promise,label,timeoutMs=8000){
   let timer;
   return Promise.race([
     Promise.resolve(promise),
