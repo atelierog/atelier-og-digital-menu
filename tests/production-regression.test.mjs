@@ -23,7 +23,7 @@ const [
   read("../src/src/manager/module-dashboard.mjs"),
   read("../supabase/functions/staff-operations/index.ts"),
   read("../supabase/functions/public-menu/index.ts"),
-  read("../supabase/migrations/20261114100000_harden_module_entitlements_and_fk_indexes.sql"),
+  read("../supabase/migrations/20261114082139_20261114100000_harden_module_entitlements_and_fk_indexes.sql"),
   read("../supabase/config.toml"),
   read("../supabase/functions/manager-staff-access/index.ts"),
   read("../supabase/functions/staff-password-reset/index.ts"),
