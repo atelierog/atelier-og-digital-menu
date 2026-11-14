@@ -2,7 +2,7 @@
 
 Captured from the live Supabase project `qwyquvufneolyesfiipf` on 2026-11-14.
 
-The live database reports **21 applied migrations**:
+The live database reports **22 applied migrations**:
 
 | Applied version | Applied name |
 |---|---|
@@ -27,16 +27,17 @@ The live database reports **21 applied migrations**:
 | 20261110113500 | add_food_catalog_type |
 | 20261110142054 | staff_id_login_and_resets |
 | 20261110154405 | stream_orders_to_realtime |
+| 20261114082139 | 20261114100000_harden_module_entitlements_and_fk_indexes |
 
 ## Repository comparison
 
-The checked Git branches contain only these two migration SQL files:
+The checked Git branches originally contained only these two migration SQL files; this recovery branch now also contains the exact SQL for the new 22nd migration:
 
 - `20261027_restaurant_ordering_foundation.sql`
 - `20261027163000_add_manager_staff_roles.sql`
 
-Neither filename is an exact version/name match for the corresponding live records (`20261108165540_restaurant_ordering_foundation_20261108` and `20261027162701_add_manager_staff_roles`). The remaining applied SQL files were not found in any of the ten checked repository branches or their migration directories.
+Neither filename is an exact version/name match for the corresponding live records (`20261108165540_restaurant_ordering_foundation_20261108` and `20261027162701_add_manager_staff_roles`). The 21 historical applied SQL files (before the new 22nd migration) were not found in any of the ten checked repository branches or their migration directories.
 
 **Do not rename these two files to pretend they are the applied versions. Do not create no-op placeholders and do not mark missing versions applied.** The live schema, constraints, indexes, policies and functions must be used to build a reviewed schema snapshot or recover the original SQL from the original authoring environment/backups. Until then, this file is an inventory, not a replacement migration history.
 
-The new migration `20261114100000_harden_module_entitlements_and_fk_indexes.sql` is a new proposed change on the recovery branch only. It is not recorded as applied in production.
+The new migration is tracked as `20261114082139_20261114100000_harden_module_entitlements_and_fk_indexes.sql` and **has been applied to production**. Post-application verification confirmed Super Admin-only insert/update/delete policies on `business_modules`, the new `admin_set_business_modules` SECURITY DEFINER RPC, and all three intended foreign-key indexes. The `business_modules` table still contains 11 rows (all enabled); the migration did not delete or alter business-module records.
