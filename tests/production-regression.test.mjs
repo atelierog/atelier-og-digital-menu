@@ -361,9 +361,9 @@ test("navigation controller invalidates stale route requests", () => {
 });
 
 test("Manager shell is mounted before business and module context requests resolve", () => {
-  const start = app.indexOf("async function managerView(id,view=");
-  const end = app.indexOf("function managerIcon", start);
-  const route = app.slice(start, end);
+  const start = managerRuntime.indexOf("async function managerView(id,view=");
+  const end = managerRuntime.indexOf("return { bindManagerFrame", start);
+  const route = managerRuntime.slice(start, end);
   const shellMount = route.indexOf('app.innerHTML=managerFrameContent');
   const contextRequest = route.indexOf("loadManagerWorkspace");
   assert.ok(shellMount >= 0 && contextRequest > shellMount);
@@ -371,9 +371,9 @@ test("Manager shell is mounted before business and module context requests resol
 });
 
 test("Manager navigation renders into the existing content region, not the app root", () => {
-  const start = app.indexOf("function navigateManager(id,view)");
-  const end = app.indexOf("async function managerView(id,view=");
-  const route = app.slice(start, end);
+  const start = managerRuntime.indexOf("function navigateManager(id,view)");
+  const end = managerRuntime.indexOf("async function managerView(id,view=");
+  const route = managerRuntime.slice(start, end);
   assert.match(route, /document.querySelector\("\.manager-content"\)/);
   assert.doesNotMatch(route, /app\.innerHTML/);
   assert.match(route, /return managerView\(id,view\)/);
@@ -394,7 +394,7 @@ test("portal routing maps each authenticated role to its own portal", () => {
 });
 
 test("all authenticated portals use extracted service boundaries", () => {
-  assert.match(app, /loadManagerWorkspace\(supabase/);
+  assert.match(managerRuntime, /loadManagerWorkspace\(supabase/);
   assert.match(app, /renderStaffWorkspace\(\{app,supabase,state/);
   assert.match(app, /loadSuperAdminDashboardData\(supabase\)/);
   assert.match(app, /renderSuperAdminOverview\(\{businesses:state\.businesses/);
