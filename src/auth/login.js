@@ -1,11 +1,10 @@
-import { isSixDigitPassword, isStaffPassword } from "./password-policy.mjs";
-import { isValidStaffLoginId, normalizeStaffLoginId, staffAuthEmail } from "./staff-login.mjs";
+import { isSixDigitPassword } from "./password-policy.mjs";
 
 const eyeIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
 const eyeOffIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.8 10.8 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7c1.3 0 2.5-.3 3.5-.8"/></svg>';
 
-function passwordInputMarkup(id,placeholder,autocomplete="new-password",sixDigit=false,staffPassword=false){
-  const constraints=sixDigit?' inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" title="Enter exactly six digits"':staffPassword?' minlength="6" maxlength="72" title="Use at least 6 characters"':'';
+function passwordInputMarkup(id,placeholder,autocomplete="new-password",sixDigit=false){
+  const constraints=sixDigit?' inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" title="Enter exactly six digits"':'';
   return '<div class="password-field"><input id="'+id+'" type="password" required autocomplete="'+autocomplete+'" placeholder="'+placeholder+'"'+constraints+'><button type="button" class="password-toggle" data-password-toggle="'+id+'" aria-label="Show password" aria-pressed="false">'+eyeIcon+'</button></div>';
 }
 
@@ -24,53 +23,14 @@ function bindPasswordToggles(){
 }
 
 export function renderLogin({app,supabase,boot,esc},message="",mode="login",emailValue=""){
-  app.dataset.authFlow = (mode === "request" || mode === "verify" || mode === "staff-request" || mode === "staff-verify") ? "recovery" : "login";
+  app.dataset.authFlow = (mode === "request" || mode === "verify") ? "recovery" : "login";
   const safeMessage=message?'<div class="notice">'+esc(message)+'</div>':'';
   const brand='<div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div>';
   const emailField='<label>Email address<input id="email" type="email" required autocomplete="email" placeholder="you@example.com" value="'+esc(emailValue)+'"></label>';
 
-  if(mode==="login"||mode==="manager-login"||mode==="staff-login")mode="unified";
-
-  if(mode==="unified"){
-    app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<h1>Sign in</h1><p class="muted">Use your email or staff username.</p>'+safeMessage+'<form id="unifiedLogin"><label>Email or staff username<input id="loginIdentifier" required autocomplete="username" placeholder="Email or staff username" value="'+esc(emailValue)+'"></label><label>Password'+passwordInputMarkup("password","Enter your password","current-password",false,true)+'</label><button class="primary">Sign in</button></form><button id="forgotUnified" class="link-btn">Forgot password?</button><button id="installApp" class="link-btn">Install Digital Vision</button><small id="installTip" class="compact-note"></small></div></main>';
-    bindPasswordToggles();
-    document.querySelector("#unifiedLogin").onsubmit=async e=>{e.preventDefault();const identifier=document.querySelector("#loginIdentifier").value.trim(),password=document.querySelector("#password").value,button=e.submitter;button.disabled=true;button.textContent="Signing in…";const result=identifier.includes("@")?await supabase.auth.signInWithPassword({email:identifier.toLowerCase(),password}):isValidStaffLoginId(identifier)?await supabase.auth.signInWithPassword({email:staffAuthEmail(identifier),password}):{error:{message:"Enter your Manager email or staff username."}};if(result.error){button.disabled=false;button.textContent="Sign in";return renderLogin({app,supabase,boot,esc},identifier.includes("@")?"Email or password is incorrect.":result.error.message,"unified",identifier)}await boot()};
-    document.querySelector("#forgotUnified").onclick=()=>{const identifier=document.querySelector("#loginIdentifier").value.trim();if(identifier.includes("@"))return renderLogin({app,supabase,boot,esc},"","request",identifier.toLowerCase());if(!isValidStaffLoginId(identifier))return renderLogin({app,supabase,boot,esc},"Enter your email or staff username first.","unified",identifier);renderLogin({app,supabase,boot,esc},"","staff-request",normalizeStaffLoginId(identifier))};
-    document.querySelector("#installApp").onclick=async()=>{const prompt=window.deferredInstallPrompt,tip=document.querySelector("#installTip");if(!prompt){tip.textContent="In Chrome, open the menu and choose Install Digital Vision.";return}await prompt.prompt();const choice=await prompt.userChoice;window.deferredInstallPrompt=null;tip.textContent=choice.outcome==="accepted"?"Digital Vision was added to your apps.":"You can install it later from the browser menu."};
-    return;
-  }
-
-  if(mode==="staff-request"){
-    app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<h1>Reset staff password</h1><p class="muted">Enter the staff username. A one-time code will be sent to the Manager.</p>'+safeMessage+'<form id="staffResetRequest"><label>Staff username<input id="staffLoginId" required autocomplete="username" placeholder="Your staff username" value="'+esc(emailValue)+'"></label><button class="primary">Request reset code</button></form><button id="backStaffLogin" class="link-btn">Back to sign in</button></div></main>';
-    document.querySelector("#backStaffLogin").onclick=()=>renderLogin({app,supabase,boot,esc},"","unified",emailValue);
-    document.querySelector("#staffResetRequest").onsubmit=async e=>{
-      e.preventDefault();const staffLoginId=normalizeStaffLoginId(document.querySelector("#staffLoginId").value),btn=e.submitter;btn.disabled=true;btn.textContent="Sending...";
-      const r=await supabase.functions.invoke("staff-password-reset",{body:{action:"request",staff_login_id:staffLoginId}});
-      if(r.error||r.data?.error){btn.disabled=false;btn.textContent="Request reset code";return renderLogin({app,supabase,boot,esc},r.data?.error||r.error?.message||"Could not request a reset code.","staff-request",staffLoginId)}
-      renderLogin({app,supabase,boot,esc},"If the username exists, a one-time code has been sent to the Manager.","staff-verify",staffLoginId);
-    };
-    return;
-  }
-
-  if(mode==="staff-verify"){
-    app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<h1>Verify reset code</h1><p class="muted">Ask the Manager for the code sent to their email, then choose a new password.</p>'+safeMessage+'<form id="staffResetVerify"><label>Staff username<input id="staffLoginId" required value="'+esc(emailValue)+'" readonly></label><label>One-time code<input id="staffResetCode" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="6" placeholder="6-digit code"></label><label>New password'+passwordInputMarkup("staffNewPassword","Enter your password","new-password",false,true)+'</label><label>Confirm password'+passwordInputMarkup("staffConfirmPassword","Re-enter your password","new-password",false,true)+'</label><p class="compact-note">Use at least 6 characters. Letters, numbers and symbols are allowed.</p><button class="primary">Verify and save password</button></form><button id="backStaffLogin" class="link-btn">Back to staff sign in</button></div></main>';
-    bindPasswordToggles();
-    document.querySelector("#backStaffLogin").onclick=()=>renderLogin({app,supabase,boot,esc},"","unified",emailValue);
-    document.querySelector("#staffResetVerify").onsubmit=async e=>{
-      e.preventDefault();const password=document.querySelector("#staffNewPassword").value,confirm=document.querySelector("#staffConfirmPassword").value;
-      if(password!==confirm)return renderLogin({app,supabase,boot,esc},"The passwords do not match.","staff-verify",emailValue);
-      if(!isStaffPassword(password))return renderLogin({app,supabase,boot,esc},"Use a password with at least 6 characters.","staff-verify",emailValue);
-      const btn=e.submitter;btn.disabled=true;btn.textContent="Verifying...";
-      const r=await supabase.functions.invoke("staff-password-reset",{body:{action:"complete",staff_login_id:normalizeStaffLoginId(emailValue),code:document.querySelector("#staffResetCode").value.trim(),password}});
-      if(r.error||r.data?.error){btn.disabled=false;btn.textContent="Verify and save password";return renderLogin({app,supabase,boot,esc},r.data?.error||r.error?.message||"The code could not be verified.","staff-verify",emailValue)}
-      renderLogin({app,supabase,boot,esc},"Password updated. Sign in with your username and new password.","unified",emailValue);
-    };
-    return;
-  }
-
   if(mode==="request"){
     app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<h1>Reset your password</h1><p class="muted">We’ll send a one-time recovery code to your registered email.</p>'+safeMessage+'<form id="recoveryRequest">'+emailField+'<button class="primary">Send recovery code</button></form><button id="backLogin" class="link-btn">Back to sign in</button></div></main>';
-    document.querySelector("#backLogin").onclick=()=>renderLogin({app,supabase,boot,esc},"","manager-login",emailValue);
+    document.querySelector("#backLogin").onclick=()=>renderLogin({app,supabase,boot,esc});
     document.querySelector("#recoveryRequest").onsubmit=async e=>{
       e.preventDefault();
       const email=document.querySelector("#email").value.trim().toLowerCase();
@@ -106,19 +66,9 @@ export function renderLogin({app,supabase,boot,esc},message="",mode="login",emai
     return;
   }
 
-  if(mode==="staff-login"){
-    app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<div class="auth-mode-switch"><button id="managerMode" type="button">Manager</button><button class="active" type="button" aria-current="page">Staff</button></div><h1>Staff sign in</h1>'+safeMessage+'<form id="staffLogin"><label>Staff ID<input id="staffLoginId" required autocomplete="username" placeholder="OT-12345678" value="'+esc(emailValue)+'"></label><label>Password'+passwordInputMarkup("password","Enter your password","current-password",false,true)+'</label><button class="primary">Sign in</button></form><button id="forgotStaff" class="link-btn">Forgot password?</button></div></main>';
-    bindPasswordToggles();
-    document.querySelector("#managerMode").onclick=()=>renderLogin({app,supabase,boot,esc},"","manager-login");
-    document.querySelector("#forgotStaff").onclick=()=>renderLogin({app,supabase,boot,esc},"","staff-request",normalizeStaffLoginId(document.querySelector("#staffLoginId").value));
-    document.querySelector("#staffLogin").onsubmit=async e=>{e.preventDefault();const staffId=normalizeStaffLoginId(document.querySelector("#staffLoginId").value),password=document.querySelector("#password").value,internalEmail=staffAuthEmail(staffId);if(!isValidStaffLoginId(staffId)||!internalEmail)return renderLogin({app,supabase,boot,esc},"Check the staff ID and try again.","staff-login",staffId);const r=await supabase.auth.signInWithPassword({email:internalEmail,password});if(r.error)return renderLogin({app,supabase,boot,esc},"Staff ID or password is incorrect.","staff-login",staffId);await boot()};
-    return;
-  }
-
-  app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<div class="auth-mode-switch"><button class="active" type="button" aria-current="page">Manager</button><button id="staffMode" type="button">Staff</button></div><h1>Manager sign in</h1>'+safeMessage+'<form id="login">'+emailField+'<label>Password'+passwordInputMarkup("password","Enter your password","current-password")+'</label><button class="primary">Sign in</button></form><button id="forgot" class="link-btn">Forgot password?</button></div></main>';
+  app.innerHTML='<main class="auth-page"><div class="auth-card">'+brand+'<h1>Sign in</h1>'+safeMessage+'<form id="login">'+emailField+'<label>Password'+passwordInputMarkup("password","Enter your password","current-password")+'</label><button class="primary">Sign in</button></form><button id="forgot" class="link-btn">Forgot password?</button></div></main>';
   bindPasswordToggles();
-  document.querySelector("#staffMode").onclick=()=>renderLogin({app,supabase,boot,esc},"","staff-login");
-  document.querySelector("#login").onsubmit=async e=>{e.preventDefault();const email=document.querySelector("#email").value.trim().toLowerCase(),password=document.querySelector("#password").value;const r=await supabase.auth.signInWithPassword({email,password});if(r.error)return renderLogin({app,supabase,boot,esc},r.error.message,"manager-login",email);await boot()};
+  document.querySelector("#login").onsubmit=async e=>{e.preventDefault();const email=document.querySelector("#email").value.trim().toLowerCase(),password=document.querySelector("#password").value;const r=await supabase.auth.signInWithPassword({email,password});if(r.error)return renderLogin({app,supabase,boot,esc},r.error.message);await boot()};
   document.querySelector("#forgot").onclick=()=>renderLogin({app,supabase,boot,esc},"","request",document.querySelector("#email").value.trim().toLowerCase());
 }
 
@@ -143,3 +93,4 @@ export function renderFirstLoginPassword({app,supabase,boot,esc}){
     renderLogin({app,supabase,boot,esc},"Password set. Sign in with your new password.");
   };
 }
+
