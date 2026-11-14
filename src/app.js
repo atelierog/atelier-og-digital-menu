@@ -1,6 +1,7 @@
 import { renderLogin, renderFirstLoginPassword } from "./auth/login.js";
 import { createTenantContextStore } from "./core/tenant-context.js";
 import { createNavigationController } from "./core/navigation.js";
+import { resolvePortal } from "./core/portal-routing.js";
 import { loadManagerWorkspace } from "./domains/workspaces/manager-workspace.js";
 import { loadStaffDeskData } from "./domains/staff/staff-desk-repository.js";
 import { loadSuperAdminDashboardData } from "./features/super-admin/dashboard-repository.js";
@@ -465,11 +466,12 @@ async function workspaceForBusiness(id,knownMembership=null){
   const b=bq.data;
   if(!canOpenBusinessWorkspace(isAdmin(),b.status))return shell("Business unavailable",empty("This business is "+b.status,"Access is unavailable while the business is not active. Contact your platform administrator."));
   const role=isAdmin()?"platform admin":(mq.data?.role||"member");
-  if(role==="manager"){
+  const portal=resolvePortal(isAdmin()?"admin":mq.data?.role);
+  if(portal==="manager"){
     cacheManagerContext(id,b,mq.data,mmq.data||[]);
     return managerView(id,savedManagerView(id));
   }
-  if(role==="order_taker"||role==="bill_counter")return staffWorkspace(id,b,role,mq.data);
+  if(portal==="order_taker"||portal==="bill_counter")return staffWorkspace(id,b,portal,mq.data);
   const managerName=role==="manager"?managerWelcomeName(mq.data,state.user):"";
   const active=new Set((mmq.data||[]).map(x=>x.module_id));
   const mods=state.modules.filter(x=>active.has(x.id));
