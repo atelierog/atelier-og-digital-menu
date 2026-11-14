@@ -28,8 +28,8 @@ const [
   read("../src/package.json"),
   read("../src/vite.config.js"),
   read("../src/index.html"),
-  read("../src/public/vendor/qrcode.min.js"),
-  read("../src/public/vendor/QRCODE-LICENSE.txt"),
+  read("../src/vendor/qrcode.min.js"),
+  read("../src/vendor/QRCODE-LICENSE.txt"),
   read("../src/src/auth/login.js"),
   read("../src/src/manager/module-dashboard.mjs"),
   read("../supabase/functions/staff-operations/index.ts"),
@@ -114,9 +114,10 @@ test("customer status polling is throttled to ten seconds", () => {
   assert.match(app, /setInterval\(refresh,CUSTOMER_STATUS_POLL_INTERVAL_MS\)/);
 });
 
-test("QR generation uses the locally bundled library before app startup", () => {
-  assert.match(indexHtml, /vendor\/qrcode\.min\.js/);
-  assert.match(app, /window\.QRCode/);
+test("QR generation loads a local Vite-bundled asset on demand", () => {
+  assert.match(app, /import qrCodeScriptUrl from "\.\/vendor\/qrcode\.min\.js\?url"/);
+  assert.match(app, /function loadQrCodeLibrary\(\)/);
+  assert.match(app, /script\.src=qrCodeScriptUrl/);
   assert.doesNotMatch(app, /import\("https:\/\/esm\.sh\/qrcode@1\.5\.4"\)/);
   assert.match(qrLibrary, /QRCode\.CorrectLevel/);
   assert.match(qrLicense, /The MIT License/);
