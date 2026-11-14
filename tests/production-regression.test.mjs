@@ -24,6 +24,8 @@ const [
   migration,
   rpcSecurityMigration,
   config,
+  adminBusiness,
+  adminMember,
   managerStaffAccess,
   passwordReset,
   firstLogin,
@@ -41,6 +43,8 @@ const [
   read("../supabase/migrations/20261114082139_20261114100000_harden_module_entitlements_and_fk_indexes.sql"),
   read("../supabase/migrations/20261114082546_make_module_entitlement_rpc_invoker.sql"),
   read("../supabase/config.toml"),
+  read("../supabase/functions/admin-manage-business/index.ts"),
+  read("../supabase/functions/admin-manage-member/index.ts"),
   read("../supabase/functions/manager-staff-access/index.ts"),
   read("../supabase/functions/staff-password-reset/index.ts"),
   read("../supabase/functions/complete-first-login/index.ts"),
@@ -209,6 +213,24 @@ test("Order Taker and Bill Counter server permissions are distinct", () => {
   assert.match(staffOperations, /\["manager",\s*"order_taker",\s*"admin"\]/);
   assert.match(staffOperations, /\["manager",\s*"bill_counter",\s*"admin"\]/);
   assert.match(staffOperations, /business\.status !== "active"/);
+});
+
+test("all seven active Supabase Edge Functions are tracked in the repository", () => {
+  for (const source of [adminBusiness,adminMember,publicMenu,managerStaffAccess,staffOperations,passwordReset,firstLogin]) {
+    assert.ok(source.length > 0);
+  }
+});
+
+test("Edge Functions use environment secrets and contain no hard-coded service-role credentials", () => {
+  for (const source of [adminBusiness,adminMember,publicMenu,managerStaffAccess,staffOperations,passwordReset,firstLogin]) {
+    assert.doesNotMatch(source, /sb_secret_|eyJ[a-zA-Z0-9_-]{20,}\./);
+    if (source.includes("SUPABASE_SERVICE_ROLE_KEY")) assert.match(source, /Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/);
+  }
+});
+
+test("public menu and password reset are the intended unauthenticated Edge Functions", () => {
+  assert.match(config, /\[functions\.public-menu\]\s+verify_jwt = false/);
+  assert.match(config, /\[functions\.staff-password-reset\]\s+verify_jwt = false/);
 });
 
 test("staff actions require active Manager membership and active business", () => {
