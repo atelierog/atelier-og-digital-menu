@@ -3,7 +3,7 @@ import { createBusinessId } from "./src/manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./src/manager/business-access.mjs";
 import { managerWelcomeName } from "./src/manager/welcome-name.mjs";
 import { isStaffPassword } from "./src/auth/password-policy.mjs";
-import { groupManagerModules, isManagerModuleAvailable } from "./src/manager/module-dashboard.mjs";
+import { groupManagerModules, isManagerModuleAvailable, canAccessManagerModule } from "./src/manager/module-dashboard.mjs";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://qwyquvufneolyesfiipf.supabase.co";
@@ -209,9 +209,9 @@ function saveManagerView(businessId,view){
   try{sessionStorage.setItem("dv-manager-view:"+state.user?.id+":"+businessId,view)}catch{}
 }
 
-function managerFrameContent(b,view,content,enabledCodes,name){
+function managerFrameContent(b,view,content,enabledCodes,name,role="manager"){
   const title=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-  const available=module=>!module||enabledCodes.has(module);
+  const available=module=>canAccessManagerModule(role,enabledCodes,module);
   const mainNav=new Set(["overview","catalog","qr","ordering","analytics","more"]);
   const nav=managerNav.filter(([key,,module])=>mainNav.has(key)&&available(module)).map(([key,label])=>'<button class="manager-nav '+(view===key?'active':'')+'" data-manager-view="'+key+'"><span>'+managerIcon(key)+'</span>'+esc(label)+(key==="ordering"?'<small class="manager-count" id="pendingCount"></small>':"")+'</button>').join("");
   const mobileNav=managerNav.filter(([key,,module])=>available(module)&&["overview","catalog","ordering","qr","more"].includes(key)).map(([key,label])=>'<button class="'+(view===key?'active':'')+'" data-manager-view="'+key+'"><span>'+managerIcon(key)+'</span><small>'+esc(key==="ordering"?"Orders":key==="catalog"?"Menu":label)+'</small></button>').join("");
@@ -254,18 +254,18 @@ async function managerView(id,view="overview"){
   }
   if(viewEpoch!==managerNavigationEpoch)return;
   const business={data:context.business},membership={data:context.membership},enabledRows={data:context.enabledRows};
-  if(!isAdmin() && membership.data?.role!=="manager")return workspace();
+  const accessRole=isAdmin()?"admin":membership.data?.role;
+  if(accessRole!=="admin" && accessRole!=="manager")return workspace();
   if(!canOpenBusinessWorkspace(isAdmin(),business.data.status))return error("This business is not active.");
   const enabledIds=new Set((enabledRows.data||[]).map(x=>x.module_id));
   const enabledCodes=new Set(state.modules.filter(x=>enabledIds.has(x.id)).map(x=>x.code));
   const name=managerWelcomeName(membership.data,state.user);
   const title=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-  const available=(page,module)=>!module||enabledCodes.has(module);
-  const allowed=managerNav.some(([key,,module])=>key===view&&available(key,module));
+  const allowed=managerNav.some(([key,,module])=>key===view&&canAccessManagerModule(accessRole,enabledCodes,module));
   if(!allowed){
     const route=managerNav.find(([key])=>key===view),required=route?.[2],moduleName=state.modules.find(x=>x.code===required)?.name||required||"this section";
     const message='<div class="notice" role="alert"><strong>'+esc(moduleName)+' is unavailable.</strong><p>This service is not enabled for this business. Ask the platform administrator to review its access.</p></div>';
-    app.innerHTML=managerFrameContent(business.data,view,message,enabledCodes,managerWelcomeName(membership.data,state.user));bindManagerFrame(id);return;
+    app.innerHTML=managerFrameContent(business.data,view,message,enabledCodes,managerWelcomeName(membership.data,state.user),accessRole);bindManagerFrame(id);return;
   }
   let content="";
   if(view==="overview")content=await managerOverview(id,business.data,name,enabledCodes);
@@ -283,7 +283,7 @@ async function managerView(id,view="overview"){
   else content=managerModuleSetup(title,view);
   if(viewEpoch!==managerNavigationEpoch)return;
   const b=business.data;
-  app.innerHTML=managerFrameContent(b,view,content,enabledCodes,name);
+  app.innerHTML=managerFrameContent(b,view,content,enabledCodes,name,accessRole);
   bindManagerFrame(id);
   if(view==="team")bindManagerStaff(id);
   if(view==="ordering")bindManagerOrders(id);
