@@ -80,7 +80,7 @@ The public order command recalculates item prices, discounts and tax on the serv
 8. Customer order-status tracking previously polled every second. The recovery branch changes the interval to ten seconds.
 9. QR rendering previously imported `qrcode` from `esm.sh` at runtime. The recovery branch now vendors the MIT-licensed library at `src/vendor/qrcode.min.js`, includes its license, and loads the local asset on demand through Vite's `?url` import.
 10. Supabase Performance Advisor no longer reports the three missing foreign-key indexes after the migrations. It now reports 13 indexes as unused; none were deleted because a short observation window is not enough to prove they are unnecessary. Security Advisor no longer reports an exposed SECURITY DEFINER RPC. Remaining findings are leaked-password protection disabled and the reset-request table's intentionally policy-free RLS (service-role-only access).
-11. Automated tests now target the recovered production `src/app.js` and production helper modules. GitHub Actions reports 247/247 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
+11. Automated tests now target the recovered production `src/app.js` and production helper modules. GitHub Actions reports 175/175 tests passing on the recovery branch. Browser-based end-to-end role tests remain outstanding.
 
 ## Target architecture and staged evolution
 
