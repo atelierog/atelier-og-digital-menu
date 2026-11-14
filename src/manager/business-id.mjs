@@ -19,4 +19,3 @@ export function createBusinessId(name, businesses = []) {
     if (!used.has(candidate)) return candidate;
   }
 }
-
