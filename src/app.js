@@ -7,6 +7,7 @@ import { loadSuperAdminDashboardData } from "./features/super-admin/dashboard-re
 import { bootCustomerMenu } from "./features/customer/public-menu.js";
 import { renderStaffWorkspace } from "./features/staff/staff-workspace.js";
 import { renderSuperAdminOverview } from "./features/super-admin/overview-screen.js";
+import { managerFrameContent, managerSkeleton, managerAwait, managerInlineError } from "./features/manager/manager-shell.js";
 import { createBusinessId } from "./manager/business-id.mjs";
 import { canOpenBusinessWorkspace } from "./manager/business-access.mjs";
 import { managerWelcomeName } from "./manager/welcome-name.mjs";
@@ -234,27 +235,6 @@ function saveManagerView(businessId,view){
   try{sessionStorage.setItem("dv-manager-view:"+state.user?.id+":"+businessId,view)}catch{}
 }
 
-function managerFrameContent(b,view,content,enabledCodes,name,role="manager"){
-  const title=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
-  const available=module=>enabledCodes===null||canAccessManagerModule(role,enabledCodes,module);
-  const mainNav=new Set(["overview","catalog","qr","ordering","analytics","more"]);
-  const nav=managerNav.filter(([key,,module])=>mainNav.has(key)&&available(module)).map(([key,label])=>'<button class="manager-nav '+(view===key?'active':'')+'" data-manager-view="'+key+'"><span>'+managerIcon(key)+'</span>'+esc(label)+(key==="ordering"?'<small class="manager-count" id="pendingCount"></small>':"")+'</button>').join("");
-  const mobileNav=managerNav.filter(([key,,module])=>available(module)&&["overview","catalog","ordering","qr","more"].includes(key)).map(([key,label])=>'<button class="'+(view===key?'active':'')+'" data-manager-view="'+key+'"><span>'+managerIcon(key)+'</span><small>'+esc(key==="ordering"?"Orders":key==="catalog"?"Menu":label)+'</small></button>').join("");
-  return '<div class="manager-shell"><aside class="manager-sidebar"><div class="brand"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><div class="manager-business"><small>YOUR BUSINESS</small><strong>'+esc(b.name||"Your business")+'</strong><span>'+esc(b.business_type?typeLabel(b.business_type):"Manager workspace")+(b.slug?" · "+esc(b.slug):"")+'</span></div><nav>'+nav+'</nav><button id="managerSignout" class="ghost manager-signout">Sign out</button></aside><main class="manager-main"><header class="manager-top"><div><small>'+esc(b.name||"Your business")+' / MANAGER</small><h1>'+esc(title)+'</h1></div><div class="manager-top-actions"><span class="manager-connected" id="managerRouteStatus" role="status" aria-live="polite">● Session active</span><button id="managerTopSignout" class="secondary manager-top-signout" type="button">Sign out</button></div></header><section class="manager-content">'+content+'</section><nav class="manager-mobile-nav">'+mobileNav+'</nav></main></div>';
-}
-function managerSkeleton(){
-  return '<div class="manager-section-skeleton" aria-hidden="true"><div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div><div class="skeleton-card large"></div></div>';
-}
-function managerAwait(promise,label,timeoutMs=15000){
-  let timer;
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise((_,reject)=>{timer=setTimeout(()=>{const timeoutError=new Error(label+" took too long. Please retry.");timeoutError.managerTimedOut=true;reject(timeoutError)},timeoutMs)})
-  ]).finally(()=>clearTimeout(timer));
-}
-function managerInlineError(label,error){
-  return '<div class="notice" role="alert"><strong>'+esc(label)+' could not be loaded.</strong><p>'+esc(error?.message||"Please check your connection and try again.")+'</p><button class="secondary" id="managerRouteRetry" type="button">Retry</button></div>';
-}
 function bindManagerFrame(id){
   document.querySelectorAll("[data-manager-view]").forEach(el=>el.onclick=()=>navigateManager(id,el.dataset.managerView));
   const signOut=async()=>{const buttons=[document.querySelector("#managerSignout"),document.querySelector("#managerTopSignout")].filter(Boolean);buttons.forEach(b=>{b.disabled=true;b.textContent="Signing out…"});stopOrderWatch();managerNavigation.invalidate();managerContexts.clear();try{const result=await supabase.auth.signOut();if(result.error)throw result.error;sessionStorage.removeItem("dv-manager-view:"+state.user?.id+":"+id);state.user=null;login()}catch(error){buttons.forEach(b=>{b.disabled=false;b.textContent="Sign out"});showAppToast("Could not sign out: "+error.message)}};
@@ -262,7 +242,7 @@ function bindManagerFrame(id){
 }
 function updateManagerShell(id,view,business,enabledCodes,name,role){
   const current=document.querySelector(".manager-shell");
-  if(!current){app.innerHTML=managerFrameContent(business,view,managerSkeleton(),enabledCodes,name,role);bindManagerFrame(id);return}
+  if(!current){app.innerHTML=managerFrameContent({b:business,view,content:managerSkeleton(),enabledCodes,name,role,managerNav,managerIcon,canAccessManagerModule,esc,typeLabel});bindManagerFrame(id);return}
   const businessBlock=document.querySelector(".manager-business");
   if(businessBlock)businessBlock.innerHTML='<small>YOUR BUSINESS</small><strong>'+esc(business.name)+'</strong><span>'+esc(typeLabel(business.business_type))+' · '+esc(business.slug)+'</span>';
   const small=document.querySelector(".manager-top small");if(small)small.textContent=business.name+" / MANAGER";
@@ -292,7 +272,7 @@ async function managerView(id,view="overview",knownMembership=null){
   let context=currentManagerContext(id);
   const provisional={id,name:"Your business",business_type:"",slug:""};
   if(!document.querySelector(".manager-shell")){
-    app.innerHTML=managerFrameContent(context?.business||provisional,view,managerSkeleton(),context?new Set((context.enabledRows||[]).map(x=>state.modules.find(m=>m.id===x.module_id)?.code).filter(Boolean)):null,managerWelcomeName(context?.membership,state.user),isAdmin()?"admin":"manager");
+    app.innerHTML=managerFrameContent({b:context?.business||provisional,view,content:managerSkeleton(),enabledCodes:context?new Set((context.enabledRows||[]).map(x=>state.modules.find(m=>m.id===x.module_id)?.code).filter(Boolean)):null,name:managerWelcomeName(context?.membership,state.user),role:isAdmin()?"admin":"manager",managerNav,managerIcon,canAccessManagerModule,esc,typeLabel});
     bindManagerFrame(id);
   }else{
     const title=document.querySelector(".manager-top h1");if(title)title.textContent=managerNav.find(x=>x[0]===view)?.[1]||"Overview";
@@ -354,7 +334,7 @@ async function managerView(id,view="overview",knownMembership=null){
   }catch(error){
     console.error("[Digital Vision] Manager section failed",view,id,error);
     if(app.dataset.managerRequestEpoch!==String(viewEpoch))return;
-    const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error);
+    const content=document.querySelector(".manager-content");if(content)content.innerHTML=managerInlineError(managerNav.find(x=>x[0]===view)?.[1]||"Section",error,esc);
     if(error?.managerTimedOut)managerNavigation.invalidate();
     document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(id,view),{once:true});
   }
@@ -668,7 +648,7 @@ if(customerMenuMode)bootCustomerMenu({app,esc,supabaseUrl:SUPABASE_URL,supabaseK
 function errorScreen(message){
   if(document.querySelector(".manager-shell")){
     const content=document.querySelector(".manager-content");
-    if(content){content.innerHTML=managerInlineError("Manager workspace",new Error(message));document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(app.dataset.managerBusinessId,app.dataset.managerView||"overview"),{once:true})}
+    if(content){content.innerHTML=managerInlineError("Manager workspace",new Error(message),esc);document.querySelector("#managerRouteRetry")?.addEventListener("click",()=>navigateManager(app.dataset.managerBusinessId,app.dataset.managerView||"overview"),{once:true})}
     return;
   }
   app.innerHTML='<main class="auth-page"><div class="auth-card"><div class="brand center"><strong>DIGITAL VISION</strong><small>BY ATELIER OG</small></div><h1>Workspace unavailable</h1><p class="muted">'+esc(message)+'</p><button class="primary" id="retryWorkspace">Try again</button></div></main>';
